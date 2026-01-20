@@ -36,8 +36,11 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
 
   // AI & Optimization state
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [smartRouteResult, setSmartRouteResult] = useState<{ text: string, links: { uri: string, title: string }[] } | null>(null);
   const [loadingGuideId, setLoadingGuideId] = useState<string | null>(null);
+  const [researchingEventId, setResearchingEventId] = useState<string | null>(null);
+  const [isResearchingAll, setIsResearchingAll] = useState(false);
 
   // Discovery State
   const [showDiscovery, setShowDiscovery] = useState(false);
@@ -163,6 +166,26 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     }
   }, [currentDayEvents, trip.location, activeTab]);
 
+  const handleTranslateTrip = async () => {
+    if (isTranslating) return;
+    if (!window.confirm("Use Gemini AI to translate this entire trip (titles, descriptions, events) into your current app language?")) return;
+    
+    setIsTranslating(true);
+    try {
+      const translatedTrip = await GeminiService.translateTrip(trip, language);
+      if (translatedTrip) {
+        onUpdate(translatedTrip);
+      } else {
+        alert("Translation failed. Please try again.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Translation service error.");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   const handleSmartRoute = async () => {
     if (currentDayEvents.length < 2) return;
     setIsOptimizing(true);
@@ -195,6 +218,96 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       alert("AI Guide unavailable. Please try again later.");
     } finally {
       setLoadingGuideId(null);
+    }
+  };
+
+  const handleResearchLogistics = async (item: ItineraryItem, prevItem: ItineraryItem | null) => {
+    setResearchingEventId(item.id);
+    try {
+      const result = await GeminiService.getEventLogistics(trip.location, item, prevItem?.title || null, language);
+      if (result) {
+        const updatedItem = { ...item };
+        if (result.price !== undefined) {
+          updatedItem.estimatedExpense = result.price;
+        }
+        if (result.currency) {
+          updatedItem.currency = result.currency;
+        }
+        if (result.transportShort) {
+          updatedItem.transportMethod = result.transportShort;
+        }
+        if (result.details) {
+          const prefix = updatedItem.description ? updatedItem.description + "\n\n" : "";
+          if (!updatedItem.description.includes("📍 Logistics")) {
+             updatedItem.description = prefix + "📍 Logistics: " + result.details;
+          }
+        }
+
+        const updatedEvents = trip.itinerary[selectedDate].map(e => e.id === item.id ? updatedItem : e);
+        onUpdate({ ...trip, itinerary: { ...trip.itinerary, [selectedDate]: updatedEvents } });
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Research failed. Please check connection.");
+    } finally {
+      setResearchingEventId(null);
+    }
+  };
+
+  const handleResearchAll = async () => {
+    if (isResearchingAll) return;
+    setIsResearchingAll(true);
+    
+    // Identify items that need research (skip transport items or those with logistics already)
+    const itemsToResearch = currentDayEvents.filter(item => 
+      item.type !== 'transport' && 
+      (!item.description || !item.description.includes("📍 Logistics"))
+    );
+
+    if (itemsToResearch.length === 0) {
+      alert("All items already researched!");
+      setIsResearchingAll(false);
+      return;
+    }
+
+    try {
+      // Run requests in parallel
+      const results = await Promise.all(itemsToResearch.map(async (item, index) => {
+         // Try to find the previous item in the full list to give context
+         const fullIndex = currentDayEvents.findIndex(e => e.id === item.id);
+         const prevItem = fullIndex > 0 ? currentDayEvents[fullIndex - 1] : null;
+         
+         const result = await GeminiService.getEventLogistics(trip.location, item, prevItem?.title || null, language);
+         return { id: item.id, result };
+      }));
+
+      // Apply updates
+      const updatedEvents = currentDayEvents.map(item => {
+         const res = results.find(r => r.id === item.id);
+         if (res && res.result) {
+            const updatedItem = { ...item };
+            const { price, currency, transportShort, details } = res.result;
+            if (price !== undefined) updatedItem.estimatedExpense = price;
+            if (currency) updatedItem.currency = currency;
+            if (transportShort) updatedItem.transportMethod = transportShort;
+            if (details) {
+               updatedItem.description = (updatedItem.description || "") + "\n\n📍 Logistics: " + details;
+            }
+            return updatedItem;
+         }
+         return item;
+      });
+
+      onUpdate({
+        ...trip,
+        itinerary: { ...trip.itinerary, [selectedDate]: updatedEvents }
+      });
+
+    } catch (e) {
+      console.error(e);
+      alert("Batch research completed with some errors.");
+    } finally {
+      setIsResearchingAll(false);
     }
   };
 
@@ -248,10 +361,6 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       cleanedEventForm.endTime = undefined;
     }
 
-    // Separate ID from the rest of the form data to avoid duplicate assignment
-    // when spreading back into ItineraryItem.
-    // However, eventForm is Partial<ItineraryItem> which might contain 'id'.
-    // We explicitly exclude 'id' from the spread.
     const { id: _, ...restForm } = cleanedEventForm as any;
 
     const newEvent: ItineraryItem = {
@@ -286,9 +395,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     e.preventDefault();
     const newFlight = { ...flightForm };
     
-    // Ensure flights object exists
     const allFlights = trip.flights || {};
-    // Use current displayed flights to preserve edits to legacy data until save
     const currentDayFlights = [...currentFlights];
 
     if (editingFlightIndex !== null) {
@@ -299,7 +406,6 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
 
     const updatedFlights = { ...allFlights, [selectedDate]: currentDayFlights };
     
-    // Update legacy fields for compatibility if editing start/end dates
     let updates: Partial<Trip> = { flights: updatedFlights };
     if (selectedDate === trip.startDate) updates.departureFlight = currentDayFlights[0];
     if (selectedDate === trip.endDate) updates.returnFlight = currentDayFlights[0];
@@ -325,37 +431,6 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     onUpdate({ ...trip, ...updates });
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const newPhoto: Photo = {
-          id: Date.now().toString(),
-          url: ev.target?.result as string,
-          caption: 'New Memory',
-          date: new Date().toISOString(),
-          tags: [],
-          comments: []
-        };
-        onUpdate({ ...trip, photos: [newPhoto, ...trip.photos] });
-      };
-      reader.readAsDataURL(e.target.files[0]);
-    }
-  };
-
-  const handleUpdatePhoto = (id: string, updates: Partial<Photo>) => {
-    const updatedPhotos = trip.photos.map(p => p.id === id ? { ...p, ...updates } : p);
-    onUpdate({ ...trip, photos: updatedPhotos });
-  };
-
-  const handleDeletePhoto = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this photo?")) {
-      const updatedPhotos = trip.photos.filter(p => p.id !== id);
-      onUpdate({ ...trip, photos: updatedPhotos });
-      setViewingPhotoId(null);
-    }
-  };
-
   return (
     <div className={`min-h-screen pb-20 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>
       
@@ -368,9 +443,23 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
           <h2 className="text-xl font-black">{trip.title}</h2>
           <p className="text-xs font-bold opacity-50">{trip.startDate} - {trip.endDate}</p>
         </div>
-        <button className={`p-2 rounded-full ${darkMode ? 'hover:bg-zinc-800' : 'hover:bg-zinc-100'}`}>
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 100-2.684 3 3 0 000 2.684zm0 12.684a3 3 0 100-2.684 3 3 0 000 2.684z"/></svg>
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleTranslateTrip}
+            disabled={isTranslating}
+            className={`p-2 rounded-full transition-all ${darkMode ? 'hover:bg-zinc-800 text-indigo-400' : 'hover:bg-zinc-100 text-indigo-600'} ${isTranslating ? 'animate-pulse opacity-50' : ''}`}
+            title="Translate Trip Content"
+          >
+            {isTranslating ? (
+              <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>
+            )}
+          </button>
+          <button className={`p-2 rounded-full ${darkMode ? 'hover:bg-zinc-800' : 'hover:bg-zinc-100'}`}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 100-2.684 3 3 0 000 2.684zm0 12.684a3 3 0 100-2.684 3 3 0 000 2.684z"/></svg>
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -524,12 +613,27 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
 
           {/* Events List */}
           <div className="space-y-4">
+            {/* Auto Research Button */}
+            {currentDayEvents.length > 0 && (
+              <button 
+                onClick={handleResearchAll}
+                disabled={isResearchingAll}
+                className={`w-full py-3 rounded-2xl font-black uppercase tracking-widest text-xs mb-2 transition-all flex items-center justify-center gap-2 ${darkMode ? 'bg-indigo-900/30 text-indigo-400 hover:bg-indigo-900/50' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'} disabled:opacity-50`}
+              >
+                {isResearchingAll ? (
+                   <><span className="animate-spin">⏳</span> Researching Day...</>
+                ) : (
+                   <>⚡ Auto-Research Day Logistics</>
+                )}
+              </button>
+            )}
+
             {currentDayEvents.length === 0 ? (
               <div className="text-center py-12 opacity-40">
                 <p className="font-bold">No plans yet.</p>
               </div>
             ) : (
-              currentDayEvents.map((item) => (
+              currentDayEvents.map((item, index) => (
                 <div key={item.id} className={`group relative p-5 rounded-3xl border-2 transition-all ${darkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-100 hover:border-zinc-200 hover:shadow-lg'}`}>
                   <div className="flex items-start gap-4">
                     <div className="flex flex-col items-center gap-1 min-w-[50px]">
@@ -554,7 +658,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                     
                     <div className="flex-1 space-y-1">
                       <h4 className="font-black text-lg leading-tight">{item.title}</h4>
-                      <p className="text-sm opacity-70 leading-relaxed">{item.description}</p>
+                      <p className="text-sm opacity-70 leading-relaxed whitespace-pre-wrap">{item.description}</p>
                       
                       <div className="flex flex-wrap gap-2 mt-2">
                         {item.estimatedExpense > 0 && (
@@ -570,42 +674,48 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                         )}
                       </div>
 
-                      {/* AI Guide Section */}
-                      {item.guideInfo ? (
-                        <div className="mt-4 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/50 space-y-3">
-                          <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-                            <span className="text-lg">✨</span>
-                            <span className="text-xs font-black uppercase tracking-widest">{t.aiGuide}</span>
+                      {/* AI Actions */}
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {item.guideInfo ? (
+                          <div className="w-full mt-2 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/50 space-y-3">
+                            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                              <span className="text-lg">✨</span>
+                              <span className="text-xs font-black uppercase tracking-widest">{t.aiGuide}</span>
+                            </div>
+                            <p className="text-sm italic opacity-90">"{item.guideInfo.story}"</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {item.guideInfo.mustEat?.length > 0 && (
+                                <div className="bg-white dark:bg-zinc-800 p-2 rounded-xl">
+                                  <span className="text-[9px] font-black uppercase text-orange-500 block mb-1">{t.mustEat}</span>
+                                  <span className="text-xs font-bold block">{item.guideInfo.mustEat[0]}</span>
+                                </div>
+                              )}
+                              {item.guideInfo.mustOrder?.length > 0 && (
+                                <div className="bg-white dark:bg-zinc-800 p-2 rounded-xl">
+                                  <span className="text-[9px] font-black uppercase text-blue-500 block mb-1">{t.mustOrder}</span>
+                                  <span className="text-xs font-bold block">{item.guideInfo.mustOrder[0]}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <p className="text-sm italic opacity-90">"{item.guideInfo.story}"</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {item.guideInfo.mustEat?.length > 0 && (
-                              <div className="bg-white dark:bg-zinc-800 p-2 rounded-xl">
-                                <span className="text-[9px] font-black uppercase text-orange-500 block mb-1">{t.mustEat}</span>
-                                <span className="text-xs font-bold block">{item.guideInfo.mustEat[0]}</span>
-                              </div>
-                            )}
-                            {item.guideInfo.mustOrder?.length > 0 && (
-                              <div className="bg-white dark:bg-zinc-800 p-2 rounded-xl">
-                                <span className="text-[9px] font-black uppercase text-blue-500 block mb-1">{t.mustOrder}</span>
-                                <span className="text-xs font-bold block">{item.guideInfo.mustOrder[0]}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <button 
-                          onClick={() => handleAiGuide(item)}
-                          disabled={loadingGuideId === item.id}
-                          className="mt-2 text-[10px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-1 hover:underline disabled:opacity-50"
+                        ) : (
+                          <button 
+                            onClick={() => handleAiGuide(item)}
+                            disabled={loadingGuideId === item.id}
+                            className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
+                          >
+                            {loadingGuideId === item.id ? '⏳ Guide...' : '✨ Guide'}
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleResearchLogistics(item, index > 0 ? currentDayEvents[index - 1] : null)}
+                          disabled={researchingEventId === item.id}
+                          className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
                         >
-                          {loadingGuideId === item.id ? (
-                            <><span className="animate-spin">⏳</span> {t.loadingGuide}</>
-                          ) : (
-                            <>✨ {t.aiGuide}</>
-                          )}
+                          {researchingEventId === item.id ? '⏳ Researching...' : '🔍 Research Logistics'}
                         </button>
-                      )}
+                      </div>
                     </div>
 
                     <div className="flex flex-col gap-2">
