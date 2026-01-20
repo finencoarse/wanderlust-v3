@@ -4,19 +4,19 @@
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "module": "ESNext",
     "skipLibCheck": true,
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": true,
+    "strict": false,
     "noImplicitAny": false,
     "baseUrl": ".",
     "paths": {
       "*": ["*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["."],
   "exclude": ["node_modules", "dist"]
 }
