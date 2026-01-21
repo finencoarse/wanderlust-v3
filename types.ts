@@ -34,6 +34,12 @@ export interface TourGuideData {
   reservationTips: string;
 }
 
+export interface ExpensePart {
+  id: string;
+  label: string;
+  amount: number;
+}
+
 export interface ItineraryItem {
   id: string;
   time?: string; // HH:mm (Start Time)
@@ -50,6 +56,7 @@ export interface ItineraryItem {
   transportMethod?: string;
   travelDuration?: string;
   guideInfo?: TourGuideData;
+  expenseParts?: ExpensePart[];
 }
 
 export interface UserProfile {
