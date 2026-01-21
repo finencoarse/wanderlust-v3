@@ -38,6 +38,7 @@ export interface ExpensePart {
   id: string;
   label: string;
   amount: number;
+  isUncounted?: boolean;
 }
 
 export interface ItineraryItem {
