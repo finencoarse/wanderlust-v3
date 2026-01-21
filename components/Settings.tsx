@@ -232,7 +232,7 @@ const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, se
                 {syncId}
               </div>
               <p className="text-xs leading-relaxed opacity-60">
-                Use this ID to restore your data on another device. Keep it safe!
+                {t.backupDescription || "Securely backup your Trips, Budget, and Profile."}
               </p>
               <button 
                 onClick={handleCloudSync} 
