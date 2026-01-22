@@ -52,7 +52,7 @@ export const getInitialTrips = (language: Language): Trip[] => {
       ev11: { title: isZh ? '八坂神社' : isJa ? '八坂神社' : isKo ? '야사카 신사' : 'Yasaka Shrine', desc: isZh ? '探索祇園區的中心。' : isJa ? '祇園の中心地を探索。' : isKo ? '기온 거리의 중심 탐방.' : 'Exploring the heart of Gion district.' },
       ev12: { title: isZh ? '花見小路散步' : isJa ? '花見小路散策' : isKo ? '하나미코지 산책' : 'Geisha District Walk', desc: isZh ? '希望能一瞥藝妓或舞妓的風采。' : isJa ? '芸妓や舞妓の姿を一目見ようと散策。' : isKo ? '게이코나 마이코를 볼 수 있기를 기대하며.' : 'Hoping to catch a glimpse of a Geiko or Maiko.' },
       ev13: { title: isZh ? '銀閣寺' : isJa ? '銀閣寺' : isKo ? '은각사' : 'Ginkaku-ji', desc: isZh ? '銀閣與其壯觀的沙庭。' : isJa ? '銀閣と見事な砂庭。' : isKo ? '은각과 웅장한 모래 정원.' : 'The Silver Pavilion and its magnificent sand garden.' },
-      ev14: { title: isZh ? '哲學之道' : isJa ? '哲学の道' : isKo ? '철학の道' : 'Philosopher\'s Path', desc: isZh ? '沿著運河的風景優美步道。' : isJa ? '運河沿いの風光明媚な散歩道。' : isKo ? '운하를 따라 걷는 경치 좋은 산책로.' : 'A scenic walk along the canal.' },
+      ev14: { title: isZh ? '哲學之道' : isJa ? '哲学の道' : isKo ? '철학의 길' : 'Philosopher\'s Path', desc: isZh ? '沿著運河的風景優美步道。' : isJa ? '運河沿いの風光明媚な散歩道。' : isKo ? '운하를 따라 걷는 경치 좋은 산책로.' : 'A scenic walk along the canal.' },
       ev15: { title: isZh ? '奈良一日遊' : isJa ? '奈良日帰り旅行' : isKo ? '나라 당일치기' : 'Day Trip to Nara', desc: isZh ? '參觀東大寺（大佛）並餵食小鹿。' : isJa ? '東大寺（大仏）を訪れ、鹿に餌をやる。' : isKo ? '도다이지(대불) 방문 및 사슴 먹이 주기.' : 'Visiting Todai-ji (Great Buddha) and feeding deer.' },
       ev16: { title: isZh ? '二條城' : isJa ? '二条城' : isKo ? '니조성' : 'Nijo Castle', desc: isZh ? '將軍的居所與鶯聲地板。' : isJa ? '将軍の居城と鴬張り。' : isKo ? '쇼군의 거처와 꾀꼬리 마루.' : 'The residence of the Shogun with nightingale floors.' },
       ev17: { title: isZh ? '京都御所' : isJa ? '京都御所' : isKo ? '교토 고쇼' : 'Kyoto Imperial Palace', desc: isZh ? '漫步於廣闊的公園腹地。' : isJa ? '広大な公園の敷地を散策。' : isKo ? '광활한 공원 부지 산책.' : 'Strolling through the vast park grounds.' },
@@ -88,19 +88,23 @@ export const getInitialTrips = (language: Language): Trip[] => {
       description: t1.description,
       status: 'past',
       coverImage: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1200&auto=format&fit=crop',
-      defaultCurrency: '¥',
-      budget: 500000,
+      defaultCurrency: 'HKD',
+      budget: 26000,
       departureFlight: {
         code: 'JL802',
         gate: '62',
         airport: 'Kansai International (KIX)',
-        transport: t1.flightDep.transport
+        transport: t1.flightDep.transport,
+        price: 4500,
+        actualPrice: 4500
       },
       returnFlight: {
         code: 'JL805',
         gate: '12',
         airport: 'Kansai International (KIX)',
-        transport: t1.flightRet.transport
+        transport: t1.flightRet.transport,
+        price: 4500,
+        actualPrice: 4500
       },
       photos: [
         { id: 'p10', url: 'https://images.unsplash.com/photo-1542640244-7e67286feb90?q=80&w=800', caption: t1.photos.p10, date: '2023-11-10', tags: ['Arrival'], isFavorite: false, type: 'image' },
@@ -127,46 +131,46 @@ export const getInitialTrips = (language: Language): Trip[] => {
       favoriteDays: ['2023-11-11', '2023-11-14', '2023-11-19'],
       itinerary: {
         '2023-11-10': [
-          { id: 'ev1', time: '14:00', endTime: '15:15', type: 'transport', title: t1.itinerary.ev1.title, description: t1.itinerary.ev1.desc, estimatedExpense: 3500, actualExpense: 3500, currency: '¥', transportMethod: 'Express Train', travelDuration: '75 mins' },
-          { id: 'ev2', period: 'night', type: 'eating', title: t1.itinerary.ev2.title, description: t1.itinerary.ev2.desc, estimatedExpense: 4000, actualExpense: 4200, currency: '¥', transportMethod: 'Walking', travelDuration: '10 mins' }
+          { id: 'ev1', time: '14:00', endTime: '15:15', type: 'transport', title: t1.itinerary.ev1.title, description: t1.itinerary.ev1.desc, estimatedExpense: 180, actualExpense: 180, currency: 'HKD', transportMethod: 'Express Train', travelDuration: '75 mins' },
+          { id: 'ev2', period: 'night', type: 'eating', title: t1.itinerary.ev2.title, description: t1.itinerary.ev2.desc, estimatedExpense: 210, actualExpense: 220, currency: 'HKD', transportMethod: 'Walking', travelDuration: '10 mins' }
         ],
         '2023-11-11': [
-          { id: 'ev3', time: '07:30', endTime: '10:30', type: 'sightseeing', title: t1.itinerary.ev3.title, description: t1.itinerary.ev3.desc, estimatedExpense: 0, actualExpense: 0, currency: '¥', transportMethod: 'JR Nara Line', travelDuration: '5 mins' },
-          { id: 'ev4', time: '13:00', endTime: '15:30', type: 'sightseeing', title: t1.itinerary.ev4.title, description: t1.itinerary.ev4.desc, estimatedExpense: 1000, actualExpense: 1000, currency: '¥', transportMethod: 'Taxi', travelDuration: '15 mins' }
+          { id: 'ev3', time: '07:30', endTime: '10:30', type: 'sightseeing', title: t1.itinerary.ev3.title, description: t1.itinerary.ev3.desc, estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'JR Nara Line', travelDuration: '5 mins' },
+          { id: 'ev4', time: '13:00', endTime: '15:30', type: 'sightseeing', title: t1.itinerary.ev4.title, description: t1.itinerary.ev4.desc, estimatedExpense: 50, actualExpense: 50, currency: 'HKD', transportMethod: 'Taxi', travelDuration: '15 mins' }
         ],
         '2023-11-12': [
-          { id: 'ev5', time: '09:00', endTime: '11:00', type: 'sightseeing', title: t1.itinerary.ev5.title, description: t1.itinerary.ev5.desc, estimatedExpense: 600, actualExpense: 600, currency: '¥', transportMethod: 'Bus 205', travelDuration: '40 mins' },
-          { id: 'ev6', time: '14:00', endTime: '16:00', type: 'sightseeing', title: t1.itinerary.ev6.title, description: t1.itinerary.ev6.desc, estimatedExpense: 500, actualExpense: 500, currency: '¥', transportMethod: 'Walking', travelDuration: '20 mins' }
+          { id: 'ev5', time: '09:00', endTime: '11:00', type: 'sightseeing', title: t1.itinerary.ev5.title, description: t1.itinerary.ev5.desc, estimatedExpense: 30, actualExpense: 30, currency: 'HKD', transportMethod: 'Bus 205', travelDuration: '40 mins' },
+          { id: 'ev6', time: '14:00', endTime: '16:00', type: 'sightseeing', title: t1.itinerary.ev6.title, description: t1.itinerary.ev6.desc, estimatedExpense: 25, actualExpense: 25, currency: 'HKD', transportMethod: 'Walking', travelDuration: '20 mins' }
         ],
         '2023-11-13': [
-          { id: 'ev7', time: '08:00', endTime: '12:00', type: 'sightseeing', title: t1.itinerary.ev7.title, description: t1.itinerary.ev7.desc, estimatedExpense: 800, actualExpense: 800, currency: '¥', transportMethod: 'Hankyu Line', travelDuration: '30 mins' },
-          { id: 'ev8', period: 'afternoon', type: 'eating', title: t1.itinerary.ev8.title, description: t1.itinerary.ev8.desc, estimatedExpense: 4500, actualExpense: 4800, currency: '¥', transportMethod: 'Walking', travelDuration: '5 mins' }
+          { id: 'ev7', time: '08:00', endTime: '12:00', type: 'sightseeing', title: t1.itinerary.ev7.title, description: t1.itinerary.ev7.desc, estimatedExpense: 40, actualExpense: 40, currency: 'HKD', transportMethod: 'Hankyu Line', travelDuration: '30 mins' },
+          { id: 'ev8', period: 'afternoon', type: 'eating', title: t1.itinerary.ev8.title, description: t1.itinerary.ev8.desc, estimatedExpense: 230, actualExpense: 250, currency: 'HKD', transportMethod: 'Walking', travelDuration: '5 mins' }
         ],
         '2023-11-14': [
-          { id: 'ev9', time: '15:00', endTime: '18:30', type: 'sightseeing', title: t1.itinerary.ev9.title, description: t1.itinerary.ev9.desc, estimatedExpense: 400, actualExpense: 400, currency: '¥', transportMethod: 'Taxi', travelDuration: '20 mins' },
-          { id: 'ev10', period: 'night', type: 'shopping', title: t1.itinerary.ev10.title, description: t1.itinerary.ev10.desc, estimatedExpense: 5000, actualExpense: 6500, currency: '¥', transportMethod: 'Walking', travelDuration: '2 mins' }
+          { id: 'ev9', time: '15:00', endTime: '18:30', type: 'sightseeing', title: t1.itinerary.ev9.title, description: t1.itinerary.ev9.desc, estimatedExpense: 20, actualExpense: 20, currency: 'HKD', transportMethod: 'Taxi', travelDuration: '20 mins' },
+          { id: 'ev10', period: 'night', type: 'shopping', title: t1.itinerary.ev10.title, description: t1.itinerary.ev10.desc, estimatedExpense: 260, actualExpense: 340, currency: 'HKD', transportMethod: 'Walking', travelDuration: '2 mins' }
         ],
         '2023-11-15': [
-          { id: 'ev11', period: 'afternoon', type: 'sightseeing', title: t1.itinerary.ev11.title, description: t1.itinerary.ev11.desc, estimatedExpense: 0, actualExpense: 0, currency: '¥', transportMethod: 'Bus', travelDuration: '15 mins' },
-          { id: 'ev12', period: 'night', type: 'other', title: t1.itinerary.ev12.title, description: t1.itinerary.ev12.desc, estimatedExpense: 0, actualExpense: 0, currency: '¥', transportMethod: 'Walking', travelDuration: '30 mins' }
+          { id: 'ev11', period: 'afternoon', type: 'sightseeing', title: t1.itinerary.ev11.title, description: t1.itinerary.ev11.desc, estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Bus', travelDuration: '15 mins' },
+          { id: 'ev12', period: 'night', type: 'other', title: t1.itinerary.ev12.title, description: t1.itinerary.ev12.desc, estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Walking', travelDuration: '30 mins' }
         ],
         '2023-11-16': [
-          { id: 'ev13', time: '10:00', endTime: '12:00', type: 'sightseeing', title: t1.itinerary.ev13.title, description: t1.itinerary.ev13.desc, estimatedExpense: 500, actualExpense: 500, currency: '¥', transportMethod: 'Bus 17', travelDuration: '35 mins' },
-          { id: 'ev14', time: '13:00', endTime: '14:30', type: 'sightseeing', title: t1.itinerary.ev14.title, description: t1.itinerary.ev14.desc, estimatedExpense: 0, actualExpense: 0, currency: '¥', transportMethod: 'Walking', travelDuration: '60 mins' }
+          { id: 'ev13', time: '10:00', endTime: '12:00', type: 'sightseeing', title: t1.itinerary.ev13.title, description: t1.itinerary.ev13.desc, estimatedExpense: 25, actualExpense: 25, currency: 'HKD', transportMethod: 'Bus 17', travelDuration: '35 mins' },
+          { id: 'ev14', time: '13:00', endTime: '14:30', type: 'sightseeing', title: t1.itinerary.ev14.title, description: t1.itinerary.ev14.desc, estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Walking', travelDuration: '60 mins' }
         ],
         '2023-11-17': [
-          { id: 'ev15', time: '09:00', endTime: '17:00', type: 'sightseeing', title: t1.itinerary.ev15.title, description: t1.itinerary.ev15.desc, estimatedExpense: 5000, actualExpense: 5500, currency: '¥', transportMethod: 'Kintetsu Exp', travelDuration: '45 mins' }
+          { id: 'ev15', time: '09:00', endTime: '17:00', type: 'sightseeing', title: t1.itinerary.ev15.title, description: t1.itinerary.ev15.desc, estimatedExpense: 260, actualExpense: 290, currency: 'HKD', transportMethod: 'Kintetsu Exp', travelDuration: '45 mins' }
         ],
         '2023-11-18': [
-          { id: 'ev16', time: '09:30', endTime: '12:00', type: 'sightseeing', title: t1.itinerary.ev16.title, description: t1.itinerary.ev16.desc, estimatedExpense: 800, actualExpense: 1300, currency: '¥', transportMethod: 'Subway', travelDuration: '10 mins' },
-          { id: 'ev17', period: 'afternoon', type: 'sightseeing', title: t1.itinerary.ev17.title, description: t1.itinerary.ev17.desc, estimatedExpense: 0, actualExpense: 0, currency: '¥', transportMethod: 'Walking', travelDuration: '15 mins' }
+          { id: 'ev16', time: '09:30', endTime: '12:00', type: 'sightseeing', title: t1.itinerary.ev16.title, description: t1.itinerary.ev16.desc, estimatedExpense: 40, actualExpense: 70, currency: 'HKD', transportMethod: 'Subway', travelDuration: '10 mins' },
+          { id: 'ev17', period: 'afternoon', type: 'sightseeing', title: t1.itinerary.ev17.title, description: t1.itinerary.ev17.desc, estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Walking', travelDuration: '15 mins' }
         ],
         '2023-11-19': [
-          { id: 'ev18', period: 'afternoon', type: 'shopping', title: t1.itinerary.ev18.title, description: t1.itinerary.ev18.desc, estimatedExpense: 20000, actualExpense: 25000, currency: '¥', transportMethod: 'Bus', travelDuration: '20 mins' },
-          { id: 'ev19', period: 'night', type: 'eating', title: t1.itinerary.ev19.title, description: t1.itinerary.ev19.desc, estimatedExpense: 25000, actualExpense: 28000, currency: '¥', transportMethod: 'Taxi', travelDuration: '10 mins' }
+          { id: 'ev18', period: 'afternoon', type: 'shopping', title: t1.itinerary.ev18.title, description: t1.itinerary.ev18.desc, estimatedExpense: 1050, actualExpense: 1300, currency: 'HKD', transportMethod: 'Bus', travelDuration: '20 mins' },
+          { id: 'ev19', period: 'night', type: 'eating', title: t1.itinerary.ev19.title, description: t1.itinerary.ev19.desc, estimatedExpense: 1300, actualExpense: 1450, currency: 'HKD', transportMethod: 'Taxi', travelDuration: '10 mins' }
         ],
         '2023-11-20': [
-          { id: 'ev20', time: '09:00', endTime: '11:00', type: 'transport', title: t1.itinerary.ev20.title, description: t1.itinerary.ev20.desc, estimatedExpense: 4000, actualExpense: 4000, currency: '¥', transportMethod: 'MK Shuttle', travelDuration: '90 mins' }
+          { id: 'ev20', time: '09:00', endTime: '11:00', type: 'transport', title: t1.itinerary.ev20.title, description: t1.itinerary.ev20.desc, estimatedExpense: 210, actualExpense: 210, currency: 'HKD', transportMethod: 'MK Shuttle', travelDuration: '90 mins' }
         ]
       }
     },
@@ -179,25 +183,29 @@ export const getInitialTrips = (language: Language): Trip[] => {
       description: t2.description,
       status: 'future',
       coverImage: 'https://images.unsplash.com/photo-1590559899731-a3828395a22c?q=80&w=1200&auto=format&fit=crop',
-      defaultCurrency: '$',
-      budget: 3000,
+      defaultCurrency: 'HKD',
+      budget: 23400,
       departureFlight: {
         code: t2.flightDep.code,
         gate: 'Terminal 1',
         airport: t2.flightDep.airport,
-        transport: t2.flightDep.transport
+        transport: t2.flightDep.transport,
+        price: 3000,
+        actualPrice: 3180
       },
       returnFlight: {
         code: t2.flightRet.code,
         gate: 'Intl Terminal',
         airport: t2.flightRet.airport,
-        transport: t2.flightRet.transport
+        transport: t2.flightRet.transport,
+        price: 2000,
+        actualPrice: 2250
       },
       flights: {
-        '2024-04-10': [{ code: t2.flightDep.code, gate: 'T1', airport: t2.flightDep.airport, transport: t2.flightDep.transport, label: 'Arrival' }],
-        '2024-04-13': [{ code: t2.flightTrans1.code, gate: 'G4', airport: t2.flightTrans1.airport, transport: t2.flightTrans1.transport, label: 'Transfer' }],
-        '2024-04-17': [{ code: t2.flightTrans2.code, gate: 'Track 5', airport: t2.flightTrans2.airport, transport: t2.flightTrans2.transport, label: 'Transfer' }],
-        '2024-04-20': [{ code: t2.flightRet.code, gate: 'G12', airport: t2.flightRet.airport, transport: t2.flightRet.transport, label: 'Return' }]
+        '2024-04-10': [{ code: t2.flightDep.code, gate: 'T1', airport: t2.flightDep.airport, transport: t2.flightDep.transport, label: 'Arrival', price: 3000, actualPrice: 3180 }],
+        '2024-04-13': [{ code: t2.flightTrans1.code, gate: 'G4', airport: t2.flightTrans1.airport, transport: t2.flightTrans1.transport, label: 'Transfer', price: 1500, actualPrice: 1680 }],
+        '2024-04-17': [{ code: t2.flightTrans2.code, gate: 'Track 5', airport: t2.flightTrans2.airport, transport: t2.flightTrans2.transport, label: 'Transfer', price: 400, actualPrice: 360 }],
+        '2024-04-20': [{ code: t2.flightRet.code, gate: 'G12', airport: t2.flightRet.airport, transport: t2.flightRet.transport, label: 'Return', price: 2000, actualPrice: 2250 }]
       },
       photos: [],
       comments: [],
@@ -206,73 +214,73 @@ export const getInitialTrips = (language: Language): Trip[] => {
       favoriteDays: [],
       itinerary: {
         '2024-04-10': [
-          { id: 'os1', time: '18:00', endTime: '19:30', type: 'transport', title: 'Hotel Check-in Namba', description: 'Settling into the hotel near Dotonbori.\n\n📍 Logistics: Take Nankai Airport Express from KIX to Namba Station (approx 45 mins, ¥930). Walk 5-10 mins to Dotonbori area.', estimatedExpense: 9, actualExpense: 0, currency: '$', transportMethod: 'Nankai Train', travelDuration: '45 mins' },
-          { id: 'os2', time: '19:30', endTime: '21:30', type: 'eating', title: 'Dotonbori', description: 'Food crawl: Takoyaki, Okonomiyaki, and street food.\n\n📍 Logistics: Located 5 min walk from Namba Station (Midosuji Line/Nankai). Exit 14 or 15B.', estimatedExpense: 30, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '10 mins' }
+          { id: 'os1', time: '18:00', endTime: '19:30', type: 'transport', title: 'Hotel Check-in Namba', description: 'Settling into the hotel near Dotonbori.\n\n📍 Logistics: Take Nankai Airport Express from KIX to Namba Station (approx 45 mins, ¥930). Walk 5-10 mins to Dotonbori area.', estimatedExpense: 70, actualExpense: 72, currency: 'HKD', transportMethod: 'Nankai Train', travelDuration: '45 mins' },
+          { id: 'os2', time: '19:30', endTime: '21:30', type: 'eating', title: 'Dotonbori', description: 'Food crawl: Takoyaki, Okonomiyaki, and street food.\n\n📍 Logistics: Located 5 min walk from Namba Station (Midosuji Line/Nankai). Exit 14 or 15B.', estimatedExpense: 234, actualExpense: 380, currency: 'HKD', transportMethod: 'Walking', travelDuration: '10 mins' }
         ],
         '2024-04-11': [
-           { id: 'os3', time: '08:30', endTime: '09:00', type: 'transport', title: 'Travel to USJ', description: 'Taking the JR Yumesaki Line.\n\n📍 Logistics: From Namba, take Hanshin Line to Nishikujo, transfer to JR Yumesaki Line to Universal City Station.', estimatedExpense: 5, actualExpense: 0, currency: '$', transportMethod: 'Train', travelDuration: '30 mins' },
-           { id: 'os4', time: '09:00', endTime: '13:00', type: 'sightseeing', title: 'Universal Studios Japan', description: 'Super Nintendo World and Mario Kart ride.\n\n📍 Logistics: 5 min walk from Universal City Station. 1 Day Studio Pass approx ¥8,600 - ¥9,500. Timed Entry Ticket required for Nintendo World.', estimatedExpense: 80, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '4 hours' },
-           { id: 'os5', time: '13:00', endTime: '14:00', type: 'eating', title: 'Toad\'s Cafe', description: 'Themed lunch inside Nintendo World.', estimatedExpense: 25, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '5 mins' },
-           { id: 'os6', time: '14:00', endTime: '18:00', type: 'sightseeing', title: 'Harry Potter World', description: 'Wizarding World and Forbidden Journey ride.', estimatedExpense: 0, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '4 hours' },
-           { id: 'os7', time: '19:00', endTime: '21:00', type: 'eating', title: 'CityWalk Osaka', description: 'Dinner outside the park gates.', estimatedExpense: 20, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '10 mins' }
+           { id: 'os3', time: '08:30', endTime: '09:00', type: 'transport', title: 'Travel to USJ', description: 'Taking the JR Yumesaki Line.\n\n📍 Logistics: From Namba, take Hanshin Line to Nishikujo, transfer to JR Yumesaki Line to Universal City Station.', estimatedExpense: 40, actualExpense: 40, currency: 'HKD', transportMethod: 'Train', travelDuration: '30 mins' },
+           { id: 'os4', time: '09:00', endTime: '13:00', type: 'sightseeing', title: 'Universal Studios Japan', description: 'Super Nintendo World and Mario Kart ride.\n\n📍 Logistics: 5 min walk from Universal City Station. 1 Day Studio Pass approx ¥8,600 - ¥9,500. Timed Entry Ticket required for Nintendo World.', estimatedExpense: 624, actualExpense: 750, currency: 'HKD', transportMethod: 'Walking', travelDuration: '4 hours' },
+           { id: 'os5', time: '13:00', endTime: '14:00', type: 'eating', title: 'Toad\'s Cafe', description: 'Themed lunch inside Nintendo World.', estimatedExpense: 195, actualExpense: 260, currency: 'HKD', transportMethod: 'Walking', travelDuration: '5 mins' },
+           { id: 'os6', time: '14:00', endTime: '18:00', type: 'sightseeing', title: 'Harry Potter World', description: 'Wizarding World and Forbidden Journey ride.', estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Walking', travelDuration: '4 hours' },
+           { id: 'os7', time: '19:00', endTime: '21:00', type: 'eating', title: 'CityWalk Osaka', description: 'Dinner outside the park gates.', estimatedExpense: 156, actualExpense: 180, currency: 'HKD', transportMethod: 'Walking', travelDuration: '10 mins' }
         ],
         '2024-04-12': [
-           { id: 'os8', time: '09:00', endTime: '11:30', type: 'sightseeing', title: 'Osaka Castle', description: 'Exploring the castle keep and Nishinomaru Garden.\n\n📍 Logistics: Take JR Loop Line to Osakajokoen Station. 15 min walk through park. Entry fee ¥600.', estimatedExpense: 6, actualExpense: 0, currency: '$', transportMethod: 'JR Loop Line', travelDuration: '20 mins' },
-           { id: 'os9', time: '12:00', endTime: '13:30', type: 'eating', title: 'Kuromon Ichiba Market', description: 'Fresh seafood lunch and wagyu beef skewers.\n\n📍 Logistics: 2 min walk from Nippombashi Station (Sakaisuji/Sennichimae Lines). Exit 10.', estimatedExpense: 40, actualExpense: 0, currency: '$', transportMethod: 'Metro', travelDuration: '15 mins' },
-           { id: 'os10', time: '14:00', endTime: '16:00', type: 'sightseeing', title: 'Shinsekai & Tsutenkaku', description: 'Retro Osaka vibes and tower view.\n\n📍 Logistics: 3 min walk from Ebisucho Station (Sakaisuji Line), Exit 3.', estimatedExpense: 10, actualExpense: 0, currency: '$', transportMethod: 'Metro', travelDuration: '15 mins' },
-           { id: 'os11', time: '16:30', endTime: '18:00', type: 'sightseeing', title: 'Abeno Harukas 300', description: 'Observation deck with sunset views.\n\n📍 Logistics: Connected to Tennoji Station. Observatory entry ¥1,500.', estimatedExpense: 15, actualExpense: 0, currency: '$', transportMethod: 'Walk', travelDuration: '15 mins' },
-           { id: 'os12', time: '19:00', endTime: '21:00', type: 'sightseeing', title: 'Umeda Sky Building', description: 'Night view from the floating garden observatory.\n\n📍 Logistics: 10-15 min walk from Osaka Station (JR) or Umeda Station (Metro). Entry ¥1,500.', estimatedExpense: 15, actualExpense: 0, currency: '$', transportMethod: 'Metro', travelDuration: '20 mins' }
+           { id: 'os8', time: '09:00', endTime: '11:30', type: 'sightseeing', title: 'Osaka Castle', description: 'Exploring the castle keep and Nishinomaru Garden.\n\n📍 Logistics: Take JR Loop Line to Osakajokoen Station. 15 min walk through park. Entry fee ¥600.', estimatedExpense: 47, actualExpense: 47, currency: 'HKD', transportMethod: 'JR Loop Line', travelDuration: '20 mins' },
+           { id: 'os9', time: '12:00', endTime: '13:30', type: 'eating', title: 'Kuromon Ichiba Market', description: 'Fresh seafood lunch and wagyu beef skewers.\n\n📍 Logistics: 2 min walk from Nippombashi Station (Sakaisuji/Sennichimae Lines). Exit 10.', estimatedExpense: 312, actualExpense: 600, currency: 'HKD', transportMethod: 'Metro', travelDuration: '15 mins' },
+           { id: 'os10', time: '14:00', endTime: '16:00', type: 'sightseeing', title: 'Shinsekai & Tsutenkaku', description: 'Retro Osaka vibes and tower view.\n\n📍 Logistics: 3 min walk from Ebisucho Station (Sakaisuji Line), Exit 3.', estimatedExpense: 78, actualExpense: 90, currency: 'HKD', transportMethod: 'Metro', travelDuration: '15 mins' },
+           { id: 'os11', time: '16:30', endTime: '18:00', type: 'sightseeing', title: 'Abeno Harukas 300', description: 'Observation deck with sunset views.\n\n📍 Logistics: Connected to Tennoji Station. Observatory entry ¥1,500.', estimatedExpense: 117, actualExpense: 117, currency: 'HKD', transportMethod: 'Walk', travelDuration: '15 mins' },
+           { id: 'os12', time: '19:00', endTime: '21:00', type: 'sightseeing', title: 'Umeda Sky Building', description: 'Night view from the floating garden observatory.\n\n📍 Logistics: 10-15 min walk from Osaka Station (JR) or Umeda Station (Metro). Entry ¥1,500.', estimatedExpense: 117, actualExpense: 120, currency: 'HKD', transportMethod: 'Metro', travelDuration: '20 mins' }
         ],
         '2024-04-13': [
-          { id: 'sel1', time: '08:00', endTime: '09:00', type: 'transport', title: 'Travel to KIX', description: 'Nankai Rapi:t train to airport.\n\n📍 Logistics: Namba Station to Kansai Airport. Reserved seat required (approx ¥1,450 total).', estimatedExpense: 15, actualExpense: 0, currency: '$', transportMethod: 'Train', travelDuration: '45 mins' },
-          { id: 'sel2', time: '11:00', endTime: '13:00', type: 'transport', title: 'Flight to Seoul', description: 'Flight from Osaka (KIX) to Seoul (ICN).', estimatedExpense: 200, actualExpense: 0, currency: '$', transportMethod: 'Plane', travelDuration: '2 hours' },
-          { id: 'sel3', time: '14:30', endTime: '16:00', type: 'transport', title: 'Check-in Myeongdong', description: 'Hotel check-in and refresh.\n\n📍 Logistics: From ICN, take AREX to Seoul Station (43 mins), transfer to Line 4 to Myeongdong Station (Exit 8).', estimatedExpense: 8, actualExpense: 0, currency: '$', transportMethod: 'AREX', travelDuration: '60 mins' },
-          { id: 'sel4', time: '16:30', endTime: '18:30', type: 'sightseeing', title: 'N Seoul Tower', description: 'Cable car ride and panoramic city views.\n\n📍 Logistics: From Myeongdong Stn (Exit 3), walk 10 mins to Namsan Cable Car. Round trip 14,000 KRW. Or take Namsan Sunhwan Shuttle Bus 01.', estimatedExpense: 15, actualExpense: 0, currency: '$', transportMethod: 'Cable Car', travelDuration: '20 mins' },
-          { id: 'sel5', time: '19:00', endTime: '21:00', type: 'eating', title: 'Myeongdong Night Market', description: 'Street food paradise: Hotteok, Tteokbokki.', estimatedExpense: 25, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '10 mins' }
+          { id: 'sel1', time: '08:00', endTime: '09:00', type: 'transport', title: 'Travel to KIX', description: 'Nankai Rapi:t train to airport.\n\n📍 Logistics: Namba Station to Kansai Airport. Reserved seat required (approx ¥1,450 total).', estimatedExpense: 117, actualExpense: 117, currency: 'HKD', transportMethod: 'Train', travelDuration: '45 mins' },
+          { id: 'sel2', time: '11:00', endTime: '13:00', type: 'transport', title: 'Flight to Seoul', description: 'Flight from Osaka (KIX) to Seoul (ICN).', estimatedExpense: 1560, actualExpense: 1700, currency: 'HKD', transportMethod: 'Plane', travelDuration: '2 hours' },
+          { id: 'sel3', time: '14:30', endTime: '16:00', type: 'transport', title: 'Check-in Myeongdong', description: 'Hotel check-in and refresh.\n\n📍 Logistics: From ICN, take AREX to Seoul Station (43 mins), transfer to Line 4 to Myeongdong Station (Exit 8).', estimatedExpense: 62, actualExpense: 65, currency: 'HKD', transportMethod: 'AREX', travelDuration: '60 mins' },
+          { id: 'sel4', time: '16:30', endTime: '18:30', type: 'sightseeing', title: 'N Seoul Tower', description: 'Cable car ride and panoramic city views.\n\n📍 Logistics: From Myeongdong Stn (Exit 3), walk 10 mins to Namsan Cable Car. Round trip 14,000 KRW. Or take Namsan Sunhwan Shuttle Bus 01.', estimatedExpense: 117, actualExpense: 120, currency: 'HKD', transportMethod: 'Cable Car', travelDuration: '20 mins' },
+          { id: 'sel5', time: '19:00', endTime: '21:00', type: 'eating', title: 'Myeongdong Night Market', description: 'Street food paradise: Hotteok, Tteokbokki.', estimatedExpense: 195, actualExpense: 250, currency: 'HKD', transportMethod: 'Walking', travelDuration: '10 mins' }
         ],
         '2024-04-14': [
-          { id: 'sel6', time: '09:00', endTime: '10:30', type: 'other', title: 'Hanbok Rental', description: 'Renting traditional Korean dress for palace entry.', estimatedExpense: 20, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '10 mins' },
-          { id: 'sel7', time: '10:30', endTime: '12:30', type: 'sightseeing', title: 'Gyeongbokgung Palace', description: 'Main royal palace and changing of the guard ceremony.\n\n📍 Logistics: Gyeongbokgung Station (Line 3), Exit 5. Entry 3,000 KRW (Free if wearing Hanbok). Closed Tuesdays.', estimatedExpense: 0, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '5 mins' },
-          { id: 'sel8', time: '12:30', endTime: '14:00', type: 'eating', title: 'Tosokchon Samgyetang', description: 'Famous ginseng chicken soup lunch.', estimatedExpense: 18, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '15 mins' },
-          { id: 'sel9', time: '14:30', endTime: '16:30', type: 'sightseeing', title: 'Bukchon Hanok Village', description: 'Exploring traditional Korean houses.\n\n📍 Logistics: Anguk Station (Line 3), Exit 2. Walk straight for 300m. Please be quiet (residential area).', estimatedExpense: 0, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '20 mins' },
-          { id: 'sel10', time: '17:00', endTime: '19:00', type: 'shopping', title: 'Insadong', description: 'Traditional crafts, tea houses, and Ssamzigil.', estimatedExpense: 40, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '15 mins' },
-          { id: 'sel11', time: '19:30', endTime: '21:00', type: 'eating', title: 'Ikseon-dong BBQ', description: 'Korean BBQ dinner in a trendy hanok alley.', estimatedExpense: 35, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '10 mins' }
+          { id: 'sel6', time: '09:00', endTime: '10:30', type: 'other', title: 'Hanbok Rental', description: 'Renting traditional Korean dress for palace entry.', estimatedExpense: 156, actualExpense: 180, currency: 'HKD', transportMethod: 'Walking', travelDuration: '10 mins' },
+          { id: 'sel7', time: '10:30', endTime: '12:30', type: 'sightseeing', title: 'Gyeongbokgung Palace', description: 'Main royal palace and changing of the guard ceremony.\n\n📍 Logistics: Gyeongbokgung Station (Line 3), Exit 5. Entry 3,000 KRW (Free if wearing Hanbok). Closed Tuesdays.', estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Walking', travelDuration: '5 mins' },
+          { id: 'sel8', time: '12:30', endTime: '14:00', type: 'eating', title: 'Tosokchon Samgyetang', description: 'Famous ginseng chicken soup lunch.', estimatedExpense: 140, actualExpense: 155, currency: 'HKD', transportMethod: 'Walking', travelDuration: '15 mins' },
+          { id: 'sel9', time: '14:30', endTime: '16:30', type: 'sightseeing', title: 'Bukchon Hanok Village', description: 'Exploring traditional Korean houses.\n\n📍 Logistics: Anguk Station (Line 3), Exit 2. Walk straight for 300m. Please be quiet (residential area).', estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Walking', travelDuration: '20 mins' },
+          { id: 'sel10', time: '17:00', endTime: '19:00', type: 'shopping', title: 'Insadong', description: 'Traditional crafts, tea houses, and Ssamzigil.', estimatedExpense: 312, actualExpense: 450, currency: 'HKD', transportMethod: 'Walking', travelDuration: '15 mins' },
+          { id: 'sel11', time: '19:30', endTime: '21:00', type: 'eating', title: 'Ikseon-dong BBQ', description: 'Korean BBQ dinner in a trendy hanok alley.', estimatedExpense: 273, actualExpense: 400, currency: 'HKD', transportMethod: 'Walking', travelDuration: '10 mins' }
         ],
         '2024-04-15': [
-           { id: 'sel12', time: '10:00', endTime: '13:00', type: 'sightseeing', title: 'COEX Starfield Library', description: 'Instagrammable library and aquarium visit.', estimatedExpense: 25, actualExpense: 0, currency: '$', transportMethod: 'Subway', travelDuration: '40 mins' },
-           { id: 'sel13', time: '13:30', endTime: '15:00', type: 'eating', title: 'Gangnam Lunch', description: 'Modern Korean cuisine in Gangnam district.', estimatedExpense: 20, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '10 mins' },
-           { id: 'sel14', time: '15:30', endTime: '18:00', type: 'sightseeing', title: 'Lotte World Tower', description: 'Seoul Sky observation deck, 5th tallest building.\n\n📍 Logistics: Jamsil Station (Line 2/8), Exit 1 or 2. Entry 27,000 KRW.', estimatedExpense: 25, actualExpense: 0, currency: '$', transportMethod: 'Subway', travelDuration: '15 mins' },
-           { id: 'sel15', time: '19:00', endTime: '22:00', type: 'shopping', title: 'Hongdae', description: 'Youth culture, street performances, and nightlife.', estimatedExpense: 50, actualExpense: 0, currency: '$', transportMethod: 'Subway', travelDuration: '40 mins' }
+           { id: 'sel12', time: '10:00', endTime: '13:00', type: 'sightseeing', title: 'COEX Starfield Library', description: 'Instagrammable library and aquarium visit.', estimatedExpense: 195, actualExpense: 210, currency: 'HKD', transportMethod: 'Subway', travelDuration: '40 mins' },
+           { id: 'sel13', time: '13:30', endTime: '15:00', type: 'eating', title: 'Gangnam Lunch', description: 'Modern Korean cuisine in Gangnam district.', estimatedExpense: 156, actualExpense: 180, currency: 'HKD', transportMethod: 'Walking', travelDuration: '10 mins' },
+           { id: 'sel14', time: '15:30', endTime: '18:00', type: 'sightseeing', title: 'Lotte World Tower', description: 'Seoul Sky observation deck, 5th tallest building.\n\n📍 Logistics: Jamsil Station (Line 2/8), Exit 1 or 2. Entry 27,000 KRW.', estimatedExpense: 195, actualExpense: 200, currency: 'HKD', transportMethod: 'Subway', travelDuration: '15 mins' },
+           { id: 'sel15', time: '19:00', endTime: '22:00', type: 'shopping', title: 'Hongdae', description: 'Youth culture, street performances, and nightlife.', estimatedExpense: 390, actualExpense: 600, currency: 'HKD', transportMethod: 'Subway', travelDuration: '40 mins' }
         ],
         '2024-04-16': [
-           { id: 'sel16', time: '10:00', endTime: '12:00', type: 'sightseeing', title: 'Cheonggyecheon Stream', description: 'Relaxing walk along the urban stream.', estimatedExpense: 0, actualExpense: 0, currency: '$', transportMethod: 'Subway', travelDuration: '10 mins' },
-           { id: 'sel17', time: '12:30', endTime: '14:00', type: 'eating', title: 'Gwangjang Market', description: 'Bindaetteok (mung bean pancake) and Kalguksu.', estimatedExpense: 15, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '15 mins' },
-           { id: 'sel18', time: '14:30', endTime: '17:30', type: 'sightseeing', title: 'Dongdaemun Design Plaza', description: 'Futuristic architecture by Zaha Hadid and shopping.', estimatedExpense: 0, actualExpense: 0, currency: '$', transportMethod: 'Subway', travelDuration: '10 mins' },
-           { id: 'sel19', time: '18:30', endTime: '20:30', type: 'sightseeing', title: 'Han River Park', description: 'Evening picnic and river cruise.', estimatedExpense: 20, actualExpense: 0, currency: '$', transportMethod: 'Subway', travelDuration: '20 mins' }
+           { id: 'sel16', time: '10:00', endTime: '12:00', type: 'sightseeing', title: 'Cheonggyecheon Stream', description: 'Relaxing walk along the urban stream.', estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Subway', travelDuration: '10 mins' },
+           { id: 'sel17', time: '12:30', endTime: '14:00', type: 'eating', title: 'Gwangjang Market', description: 'Bindaetteok (mung bean pancake) and Kalguksu.', estimatedExpense: 117, actualExpense: 130, currency: 'HKD', transportMethod: 'Walking', travelDuration: '15 mins' },
+           { id: 'sel18', time: '14:30', endTime: '17:30', type: 'sightseeing', title: 'Dongdaemun Design Plaza', description: 'Futuristic architecture by Zaha Hadid and shopping.', estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Subway', travelDuration: '10 mins' },
+           { id: 'sel19', time: '18:30', endTime: '20:30', type: 'sightseeing', title: 'Han River Park', description: 'Evening picnic and river cruise.', estimatedExpense: 156, actualExpense: 160, currency: 'HKD', transportMethod: 'Subway', travelDuration: '20 mins' }
         ],
         '2024-04-17': [
-          { id: 'bus1', time: '09:00', endTime: '11:30', type: 'transport', title: 'KTX to Busan', description: 'High-speed train from Seoul Station to Busan.\n\n📍 Logistics: Seoul Station to Busan Station. Approx 2.5 - 3 hours. Economy ticket ~59,800 KRW.', estimatedExpense: 50, actualExpense: 0, currency: '$', transportMethod: 'KTX Train', travelDuration: '2.5 hours' },
-          { id: 'bus2', time: '12:00', endTime: '13:30', type: 'eating', title: 'Busan Station Lunch', description: 'Dwaeji Gukbap (Pork Soup Rice), local specialty.', estimatedExpense: 10, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '5 mins' },
-          { id: 'bus3', time: '14:00', endTime: '16:30', type: 'sightseeing', title: 'Gamcheon Culture Village', description: 'Colorful hillside village with art murals.\n\n📍 Logistics: Toseong Station (Line 1), Exit 6. Transfer to Bus Saha 1-1, Seogu 2 or 2-2 to Gamcheon Elementary School.', estimatedExpense: 2, actualExpense: 0, currency: '$', transportMethod: 'Bus', travelDuration: '30 mins' },
-          { id: 'bus4', time: '17:30', endTime: '19:30', type: 'shopping', title: 'BIFF Square', description: 'Nampo-dong shopping and street food (Ssiat Hotteok).', estimatedExpense: 30, actualExpense: 0, currency: '$', transportMethod: 'Metro', travelDuration: '20 mins' },
-          { id: 'bus5', time: '20:00', endTime: '22:00', type: 'eating', title: 'Jagalchi Fish Market', description: 'Fresh seafood dinner at Korea\'s largest fish market.', estimatedExpense: 50, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '10 mins' }
+          { id: 'bus1', time: '09:00', endTime: '11:30', type: 'transport', title: 'KTX to Busan', description: 'High-speed train from Seoul Station to Busan.\n\n📍 Logistics: Seoul Station to Busan Station. Approx 2.5 - 3 hours. Economy ticket ~59,800 KRW.', estimatedExpense: 390, actualExpense: 360, currency: 'HKD', transportMethod: 'KTX Train', travelDuration: '2.5 hours' },
+          { id: 'bus2', time: '12:00', endTime: '13:30', type: 'eating', title: 'Busan Station Lunch', description: 'Dwaeji Gukbap (Pork Soup Rice), local specialty.', estimatedExpense: 78, actualExpense: 80, currency: 'HKD', transportMethod: 'Walking', travelDuration: '5 mins' },
+          { id: 'bus3', time: '14:00', endTime: '16:30', type: 'sightseeing', title: 'Gamcheon Culture Village', description: 'Colorful hillside village with art murals.\n\n📍 Logistics: Toseong Station (Line 1), Exit 6. Transfer to Bus Saha 1-1, Seogu 2 or 2-2 to Gamcheon Elementary School.', estimatedExpense: 16, actualExpense: 16, currency: 'HKD', transportMethod: 'Bus', travelDuration: '30 mins' },
+          { id: 'bus4', time: '17:30', endTime: '19:30', type: 'shopping', title: 'BIFF Square', description: 'Nampo-dong shopping and street food (Ssiat Hotteok).', estimatedExpense: 234, actualExpense: 250, currency: 'HKD', transportMethod: 'Metro', travelDuration: '20 mins' },
+          { id: 'bus5', time: '20:00', endTime: '22:00', type: 'eating', title: 'Jagalchi Fish Market', description: 'Fresh seafood dinner at Korea\'s largest fish market.', estimatedExpense: 390, actualExpense: 520, currency: 'HKD', transportMethod: 'Walking', travelDuration: '10 mins' }
         ],
         '2024-04-18': [
-           { id: 'bus6', time: '09:30', endTime: '11:30', type: 'sightseeing', title: 'Haedong Yonggungsa', description: 'Beautiful buddhist temple by the sea.\n\n📍 Logistics: From Haeundae Station (Exit 7), take Bus 181 (approx 40 mins). Stop at Yonggungsa Temple. Free entry.', estimatedExpense: 2, actualExpense: 0, currency: '$', transportMethod: 'Bus 181', travelDuration: '45 mins' },
-           { id: 'bus7', time: '12:00', endTime: '13:30', type: 'eating', title: 'Seaside Lunch', description: 'Seafood noodles with ocean view.', estimatedExpense: 15, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '10 mins' },
-           { id: 'bus8', time: '14:00', endTime: '15:00', type: 'sightseeing', title: 'Blue Line Park', description: 'Sky Capsule ride along the coast.\n\n📍 Logistics: Mipo Station (near Haeundae Beach east end). Sky Capsule 1-2 person ~30,000 KRW. Reservation recommended.', estimatedExpense: 25, actualExpense: 0, currency: '$', transportMethod: 'Sky Capsule', travelDuration: '30 mins' },
-           { id: 'bus9', time: '15:30', endTime: '17:30', type: 'sightseeing', title: 'Haeundae Beach', description: 'Relaxing on the most famous beach in Korea.', estimatedExpense: 0, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '10 mins' },
-           { id: 'bus10', time: '19:00', endTime: '21:00', type: 'sightseeing', title: 'The Bay 101', description: 'Night view of the marine city skyline.\n\n📍 Logistics: Dongbaek Station (Line 2). 10 min walk.', estimatedExpense: 10, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '15 mins' }
+           { id: 'bus6', time: '09:30', endTime: '11:30', type: 'sightseeing', title: 'Haedong Yonggungsa', description: 'Beautiful buddhist temple by the sea.\n\n📍 Logistics: From Haeundae Station (Exit 7), take Bus 181 (approx 40 mins). Stop at Yonggungsa Temple. Free entry.', estimatedExpense: 16, actualExpense: 16, currency: 'HKD', transportMethod: 'Bus 181', travelDuration: '45 mins' },
+           { id: 'bus7', time: '12:00', endTime: '13:30', type: 'eating', title: 'Seaside Lunch', description: 'Seafood noodles with ocean view.', estimatedExpense: 117, actualExpense: 130, currency: 'HKD', transportMethod: 'Walking', travelDuration: '10 mins' },
+           { id: 'bus8', time: '14:00', endTime: '15:00', type: 'sightseeing', title: 'Blue Line Park', description: 'Sky Capsule ride along the coast.\n\n📍 Logistics: Mipo Station (near Haeundae Beach east end). Sky Capsule 1-2 person ~30,000 KRW. Reservation recommended.', estimatedExpense: 195, actualExpense: 200, currency: 'HKD', transportMethod: 'Sky Capsule', travelDuration: '30 mins' },
+           { id: 'bus9', time: '15:30', endTime: '17:30', type: 'sightseeing', title: 'Haeundae Beach', description: 'Relaxing on the most famous beach in Korea.', estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Walking', travelDuration: '10 mins' },
+           { id: 'bus10', time: '19:00', endTime: '21:00', type: 'sightseeing', title: 'The Bay 101', description: 'Night view of the marine city skyline.\n\n📍 Logistics: Dongbaek Station (Line 2). 10 min walk.', estimatedExpense: 78, actualExpense: 90, currency: 'HKD', transportMethod: 'Walking', travelDuration: '15 mins' }
         ],
         '2024-04-19': [
-           { id: 'bus11', time: '10:00', endTime: '12:00', type: 'sightseeing', title: 'Gwangalli Beach', description: 'View of the Diamond Bridge.\n\n📍 Logistics: Gwangan Station (Line 2), Exit 3 or 5. 10 min walk to beach.', estimatedExpense: 0, actualExpense: 0, currency: '$', transportMethod: 'Metro', travelDuration: '30 mins' },
-           { id: 'bus12', time: '12:30', endTime: '14:00', type: 'eating', title: 'Cafe Hopping', description: 'Coffee with a view of Gwangandaegyo Bridge.', estimatedExpense: 15, actualExpense: 0, currency: '$', transportMethod: 'Walking', travelDuration: '5 mins' },
-           { id: 'bus13', time: '15:00', endTime: '17:00', type: 'other', title: 'Spa Land Centum City', description: 'Relaxing in a huge Korean jjimjilbang.\n\n📍 Logistics: Centum City Station (Line 2), connected to Shinsegae Dept Store. Entry ~20,000 KRW (4 hours).', estimatedExpense: 20, actualExpense: 0, currency: '$', transportMethod: 'Metro', travelDuration: '20 mins' },
-           { id: 'bus14', time: '18:00', endTime: '20:00', type: 'eating', title: 'Farewell Dinner', description: 'Korean Sashimi (Hoe) dinner.', estimatedExpense: 40, actualExpense: 0, currency: '$', transportMethod: 'Taxi', travelDuration: '15 mins' }
+           { id: 'bus11', time: '10:00', endTime: '12:00', type: 'sightseeing', title: 'Gwangalli Beach', description: 'View of the Diamond Bridge.\n\n📍 Logistics: Gwangan Station (Line 2), Exit 3 or 5. 10 min walk to beach.', estimatedExpense: 0, actualExpense: 0, currency: 'HKD', transportMethod: 'Metro', travelDuration: '30 mins' },
+           { id: 'bus12', time: '12:30', endTime: '14:00', type: 'eating', title: 'Cafe Hopping', description: 'Coffee with a view of Gwangandaegyo Bridge.', estimatedExpense: 117, actualExpense: 130, currency: 'HKD', transportMethod: 'Walking', travelDuration: '5 mins' },
+           { id: 'bus13', time: '15:00', endTime: '17:00', type: 'other', title: 'Spa Land Centum City', description: 'Relaxing in a huge Korean jjimjilbang.\n\n📍 Logistics: Centum City Station (Line 2), connected to Shinsegae Dept Store. Entry ~20,000 KRW (4 hours).', estimatedExpense: 156, actualExpense: 160, currency: 'HKD', transportMethod: 'Metro', travelDuration: '20 mins' },
+           { id: 'bus14', time: '18:00', endTime: '20:00', type: 'eating', title: 'Farewell Dinner', description: 'Korean Sashimi (Hoe) dinner.', estimatedExpense: 312, actualExpense: 400, currency: 'HKD', transportMethod: 'Taxi', travelDuration: '15 mins' }
         ],
         '2024-04-20': [
-          { id: 'bus15', time: '09:00', endTime: '10:00', type: 'shopping', title: 'Seomyeon Underground', description: 'Last minute souvenir shopping.', estimatedExpense: 50, actualExpense: 0, currency: '$', transportMethod: 'Metro', travelDuration: '20 mins' },
-          { id: 'bus16', time: '10:30', endTime: '11:30', type: 'transport', title: 'Travel to Airport', description: 'Light Rail to Gimhae Airport (PUS).\n\n📍 Logistics: From Seomyeon, take Line 2 to Sasang, transfer to Busan-Gimhae Light Rail to Airport Station. Total ~30-40 mins.', estimatedExpense: 5, actualExpense: 0, currency: '$', transportMethod: 'Light Rail', travelDuration: '30 mins' }
+          { id: 'bus15', time: '09:00', endTime: '10:00', type: 'shopping', title: 'Seomyeon Underground', description: 'Last minute souvenir shopping.', estimatedExpense: 390, actualExpense: 500, currency: 'HKD', transportMethod: 'Metro', travelDuration: '20 mins' },
+          { id: 'bus16', time: '10:30', endTime: '11:30', type: 'transport', title: 'Travel to Airport', description: 'Light Rail to Gimhae Airport (PUS).\n\n📍 Logistics: From Seomyeon, take Line 2 to Sasang, transfer to Busan-Gimhae Light Rail to Airport Station. Total ~30-40 mins.', estimatedExpense: 40, actualExpense: 40, currency: 'HKD', transportMethod: 'Light Rail', travelDuration: '30 mins' }
         ]
       }
     }
