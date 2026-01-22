@@ -162,7 +162,15 @@ export const translations: Record<Language, any> = {
     findShops: "🛍️ Find Shops",
     searchPlaceholder: "Search places (e.g. Sushi, Parks)...",
     addToItinerary: "Add to Itinerary",
-    searching: "Searching..."
+    searching: "Searching...",
+    hotels: "Hotels",
+    findHotels: "Find Hotels with AI",
+    hotelPreferences: "Hotel Preferences",
+    hotelPlaceholder: "e.g. Near station, under $150, has pool...",
+    recommendedHotels: "Recommended Stays",
+    nightlyRate: "Nightly Rate",
+    bookNow: "Check Offer",
+    analyzingPlan: "Analyzing Trip Plan..."
   },
   'zh-TW': {
     journal: "日誌",
@@ -324,7 +332,15 @@ export const translations: Record<Language, any> = {
     findShops: "🛍️ 找商店",
     searchPlaceholder: "搜尋地點 (例如：壽司, 公園)...",
     addToItinerary: "加入行程",
-    searching: "搜尋中..."
+    searching: "搜尋中...",
+    hotels: "住宿",
+    findHotels: "✨ AI 智能找房",
+    hotelPreferences: "住宿偏好",
+    hotelPlaceholder: "例如：靠近車站、每晚 3000 元以下、有泳池...",
+    recommendedHotels: "推薦住宿",
+    nightlyRate: "每晚價格",
+    bookNow: "查看優惠",
+    analyzingPlan: "正在分析行程..."
   },
   ja: {
     journal: "日誌",
@@ -486,7 +502,15 @@ export const translations: Record<Language, any> = {
     findShops: "🛍️ 店検索",
     searchPlaceholder: "場所を検索 (例: 寿司, 公園)...",
     addToItinerary: "日程に追加",
-    searching: "検索中..."
+    searching: "検索中...",
+    hotels: "宿泊",
+    findHotels: "AIでホテルを探す",
+    hotelPreferences: "希望条件",
+    hotelPlaceholder: "例：駅近、1泊15000円以下、プール付き...",
+    recommendedHotels: "おすすめのホテル",
+    nightlyRate: "1泊料金",
+    bookNow: "詳細を見る",
+    analyzingPlan: "旅程を分析中..."
   },
   ko: {
     journal: "저널",
@@ -648,6 +672,14 @@ export const translations: Record<Language, any> = {
     findShops: "🛍️ 상점 찾기",
     searchPlaceholder: "장소 검색 (예: 스시, 공원)...",
     addToItinerary: "일정에 추가",
-    searching: "검색 중..."
+    searching: "검색 중...",
+    hotels: "숙소",
+    findHotels: "AI 숙소 추천",
+    hotelPreferences: "숙소 선호도",
+    hotelPlaceholder: "예: 역 근처, 1박 15만원 이하, 수영장...",
+    recommendedHotels: "추천 숙소",
+    nightlyRate: "1박 요금",
+    bookNow: "특가 확인",
+    analyzingPlan: "일정 분석 중..."
   }
 };
