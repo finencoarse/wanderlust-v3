@@ -26,6 +26,18 @@ export interface FlightInfo {
   label?: string;
 }
 
+export interface Hotel {
+  id: string;
+  name: string;
+  description: string;
+  address: string;
+  price: string;
+  rating: number;
+  amenities: string[];
+  bookingUrl?: string;
+  reason?: string; // Why AI recommended it
+}
+
 export interface TourGuideData {
   story: string;
   mustEat: string[];
@@ -104,6 +116,7 @@ export interface Trip {
   departureFlight?: FlightInfo;
   returnFlight?: FlightInfo;
   defaultCurrency?: string;
+  hotels?: Hotel[];
 }
 
 export type ViewState = 'onboarding' | 'dashboard' | 'trip-detail' | 'planner' | 'calendar' | 'budget' | 'editor' | 'settings';
