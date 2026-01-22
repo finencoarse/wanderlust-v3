@@ -20,6 +20,10 @@ interface SettingsProps {
   onImportData: (data: any) => void;
 }
 
+const COUNTRIES = [
+  "United States", "China", "Hong Kong", "Taiwan", "United Kingdom", "Japan"
+];
+
 const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, setDarkMode, fontSize, setFontSize, onBack, userProfile, setUserProfile, fullData, onImportData }) => {
   const t = translations[language];
   
@@ -122,6 +126,38 @@ const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, se
     window.location.reload(); // Reload to apply new config
   };
 
+  // --- FILE EXPORT / IMPORT HANDLERS ---
+  const handleExportFile = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullData));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "wanderlust_backup.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (window.confirm(t.importConfirm || "Overwrite current data with this file?")) {
+          onImportData(json);
+          alert(t.importSuccess || "Import successful!");
+        }
+      } catch (err) {
+        console.error(err);
+        alert(t.importError || "Invalid file format");
+      }
+    };
+    reader.readAsText(file);
+    // Reset value to allow re-importing same file if needed
+    e.target.value = '';
+  };
+
   return (
     <div className="space-y-8 animate-in slide-in-from-right-8 pb-12">
       <div className="flex items-center gap-4">
@@ -155,11 +191,22 @@ const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, se
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.selectCountry}</label>
-            <input 
-              value={userProfile.nationality} 
-              onChange={(e) => setUserProfile({...userProfile, nationality: e.target.value})} 
-              className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 font-bold outline-none focus:border-indigo-500 transition-colors"
-            />
+            <div className="relative">
+              <select 
+                value={userProfile.nationality} 
+                onChange={(e) => setUserProfile({...userProfile, nationality: e.target.value})} 
+                className={`w-full bg-transparent border-b border-zinc-200 dark:border-zinc-700 font-bold outline-none focus:border-indigo-500 transition-colors appearance-none py-2 ${darkMode ? 'text-white' : 'text-zinc-900'}`}
+              >
+                {COUNTRIES.map(country => (
+                  <option key={country} value={country} className={darkMode ? 'bg-zinc-900' : 'bg-white'}>
+                    {country}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/></svg>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -264,6 +311,25 @@ const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, se
                 {t.restore}
               </button>
             </div>
+          </div>
+        </section>
+
+        {/* Data Management Section (Manual Export/Import) */}
+        <section className={`p-6 rounded-[2rem] border-2 space-y-6 ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100'}`}>
+          <h3 className="text-xl font-black">Data Management</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <button 
+              onClick={handleExportFile}
+              className="py-4 px-4 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-black text-xs uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex flex-col items-center gap-2"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              {t.exportData || "Export JSON"}
+            </button>
+            <label className="py-4 px-4 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-black text-xs uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex flex-col items-center gap-2 cursor-pointer">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m-4 0h12"/></svg>
+              {t.importData || "Import JSON"}
+              <input type="file" className="hidden" accept=".json" onChange={handleImportFile} />
+            </label>
           </div>
         </section>
 
