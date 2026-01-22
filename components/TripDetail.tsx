@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Trip, Photo, Language, UserProfile, ItineraryItem, FlightInfo, Comment } from '../types';
+import { Trip, Photo, Language, UserProfile, ItineraryItem, FlightInfo, Comment, Hotel } from '../types';
 import { translations } from '../translations';
 import { GeminiService } from '../services/geminiService';
-import { canLoadMap, recordMapLoad, getMapUrl } from '../services/mapsService';
+import { canLoadMap, recordMapLoad, getMapUrl, getExternalMapsUrl } from '../services/mapsService';
 
 interface TripDetailProps {
   trip: Trip;
@@ -15,9 +15,11 @@ interface TripDetailProps {
   userProfile: UserProfile;
 }
 
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=800&auto=format&fit=crop';
+
 const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, onBack, language, darkMode, userProfile }) => {
   const t = translations[language];
-  const [activeTab, setActiveTab] = useState<'itinerary' | 'album'>(trip.status === 'past' ? 'album' : 'itinerary');
+  const [activeTab, setActiveTab] = useState<'itinerary' | 'album' | 'hotels'>(trip.status === 'past' ? 'album' : 'itinerary');
   const [selectedDate, setSelectedDate] = useState<string>(trip.startDate);
   
   // Modals state
@@ -41,6 +43,11 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   const [loadingGuideId, setLoadingGuideId] = useState<string | null>(null);
   const [researchingEventId, setResearchingEventId] = useState<string | null>(null);
   const [isResearchingAll, setIsResearchingAll] = useState(false);
+
+  // Hotel Search State
+  const [hotelPreferences, setHotelPreferences] = useState('');
+  const [isSearchingHotels, setIsSearchingHotels] = useState(false);
+  const [suggestedHotels, setSuggestedHotels] = useState<Hotel[]>([]);
 
   // Discovery State
   const [showDiscovery, setShowDiscovery] = useState(false);
@@ -192,6 +199,48 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     } finally {
       setIsOptimizing(false);
     }
+  };
+
+  const handleHotelSearch = async () => {
+    setIsSearchingHotels(true);
+    setSuggestedHotels([]);
+    
+    // Flatten itinerary for analysis
+    const allEvents = Object.values(trip.itinerary).flat() as ItineraryItem[];
+    
+    try {
+      const results = await GeminiService.recommendHotels(
+        trip.location, 
+        allEvents, 
+        hotelPreferences,
+        language
+      );
+      if (results && results.length > 0) {
+        setSuggestedHotels(results);
+      } else {
+        alert("No hotels found. Try adjusting your preferences.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to find hotels. Please check connection.");
+    } finally {
+      setIsSearchingHotels(false);
+    }
+  };
+
+  const handleAddHotel = (hotel: Hotel) => {
+    const existingHotels = trip.hotels || [];
+    // Avoid duplicates
+    if (existingHotels.find(h => h.name === hotel.name)) return;
+    
+    onUpdate({ ...trip, hotels: [...existingHotels, hotel] });
+    // Remove from suggested list visually
+    setSuggestedHotels(prev => prev.filter(h => h.id !== hotel.id));
+  };
+
+  const handleDeleteHotel = (hotelId: string) => {
+    const updatedHotels = (trip.hotels || []).filter(h => h.id !== hotelId);
+    onUpdate({ ...trip, hotels: updatedHotels });
   };
 
   const handleAiGuide = async (item: ItineraryItem) => {
@@ -458,6 +507,16 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     }
   };
 
+  const handleAutoFillPhotos = () => {
+    // Basic travel placeholder images
+    const stockPhotos: Photo[] = [
+      { id: `stock-${Date.now()}-1`, url: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=800', caption: 'Adventure Time', date: new Date().toISOString(), tags: ['Stock'], isFavorite: false, comments: [] },
+      { id: `stock-${Date.now()}-2`, url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=800', caption: 'Journey', date: new Date().toISOString(), tags: ['Stock'], isFavorite: false, comments: [] },
+      { id: `stock-${Date.now()}-3`, url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=800', caption: 'Beautiful Scenery', date: new Date().toISOString(), tags: ['Stock'], isFavorite: false, comments: [] },
+    ];
+    onUpdate({ ...trip, photos: [...trip.photos, ...stockPhotos] });
+  };
+
   const handleDeletePhoto = () => {
     if (photoToDelete) {
       const updatedPhotos = trip.photos.filter(p => p.id !== photoToDelete);
@@ -542,6 +601,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       {/* Tabs */}
       <div className={`flex p-1 rounded-2xl mb-8 ${darkMode ? 'bg-zinc-900' : 'bg-zinc-100'}`}>
         <button onClick={() => setActiveTab('itinerary')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'itinerary' ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500'}`}>{t.itinerary}</button>
+        <button onClick={() => setActiveTab('hotels')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'hotels' ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500'}`}>{t.hotels}</button>
         <button onClick={() => setActiveTab('album')} className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'album' ? 'bg-indigo-600 text-white shadow-lg' : 'text-zinc-500'}`}>{t.album}</button>
       </div>
 
@@ -559,6 +619,17 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
              <p className="font-black uppercase tracking-widest text-sm opacity-50">{t.importMedia}</p>
              <input type="file" multiple accept="image/*,video/*" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
            </div>
+
+           {/* Auto Fill Button (visible if few photos) */}
+           {trip.photos.length < 3 && (
+             <button 
+               onClick={handleAutoFillPhotos}
+               className={`w-full py-3 rounded-2xl border-2 border-dashed font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 ${darkMode ? 'border-zinc-800 text-zinc-500 hover:bg-zinc-900' : 'border-zinc-200 text-zinc-400 hover:bg-zinc-50'}`}
+             >
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h14a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+               Auto-Fill Sample Photos
+             </button>
+           )}
 
            {/* Photo Grid */}
            {trip.photos.length === 0 ? (
@@ -587,6 +658,9 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                        src={photo.url} 
                        alt={photo.caption}
                        className="w-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                       onError={(e) => {
+                         (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
+                       }}
                      />
                    )}
                    
@@ -607,6 +681,112 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                ))}
              </div>
            )}
+        </div>
+      )}
+
+      {/* HOTELS VIEW */}
+      {activeTab === 'hotels' && (
+        <div className="space-y-8 animate-in slide-in-from-right-4">
+          
+          {/* AI Search Section */}
+          <div className={`p-6 rounded-[2.5rem] border-2 shadow-xl ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100'}`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-black">{t.findHotels}</h3>
+                <p className="text-xs opacity-60">Analyze your full itinerary to find convenient stays.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.hotelPreferences}</label>
+                <textarea 
+                  value={hotelPreferences}
+                  onChange={(e) => setHotelPreferences(e.target.value)}
+                  placeholder={t.hotelPlaceholder}
+                  rows={2}
+                  className={`w-full p-4 rounded-2xl border-2 font-bold text-sm resize-none outline-none ${darkMode ? 'bg-black border-zinc-800 focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 focus:border-indigo-500'}`}
+                />
+              </div>
+              <button 
+                onClick={handleHotelSearch}
+                disabled={isSearchingHotels}
+                className="w-full py-4 rounded-2xl font-black uppercase tracking-widest bg-indigo-600 text-white shadow-xl hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSearchingHotels ? (
+                  <><span className="animate-spin">⏳</span> {t.analyzingPlan}</>
+                ) : (
+                  <>🔍 {t.findHotels}</>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Suggested Hotels */}
+          {suggestedHotels.length > 0 && (
+            <div className="space-y-4">
+              <h4 className="text-sm font-black uppercase tracking-widest opacity-70 ml-2">{t.recommendedHotels}</h4>
+              <div className="grid grid-cols-1 gap-4">
+                {suggestedHotels.map(hotel => (
+                  <div key={hotel.id} className={`p-5 rounded-[2rem] border-2 border-indigo-500/30 bg-indigo-500/5 animate-in slide-in-from-bottom-4`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <h5 className="font-black text-lg">{hotel.name}</h5>
+                      <span className="text-sm font-black bg-white dark:bg-black px-3 py-1 rounded-full shadow-sm">{hotel.price}</span>
+                    </div>
+                    <p className="text-sm opacity-80 mb-3">{hotel.description}</p>
+                    {hotel.reason && (
+                      <div className="mb-3 p-3 rounded-xl bg-white/50 dark:bg-black/20 text-xs italic opacity-70">
+                        💡 {hotel.reason}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {hotel.rating && <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">⭐ {hotel.rating}</span>}
+                      {hotel.amenities.map(a => (
+                        <span key={a} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 opacity-70">{a}</span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      {hotel.bookingUrl && (
+                        <a href={hotel.bookingUrl} target="_blank" rel="noreferrer" className="flex-1 py-3 text-center rounded-xl bg-white dark:bg-zinc-800 font-bold text-xs shadow-sm hover:shadow-md transition-all">
+                          {t.bookNow}
+                        </a>
+                      )}
+                      <button onClick={() => handleAddHotel(hotel)} className="flex-[2] py-3 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-lg hover:bg-indigo-700 transition-all">
+                        + Add to Trip
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Saved Hotels List */}
+          {trip.hotels && trip.hotels.length > 0 && (
+            <div className="space-y-4 pt-4 border-t dark:border-zinc-800">
+              <h4 className="text-sm font-black uppercase tracking-widest opacity-70 ml-2">My Stays</h4>
+              {trip.hotels.map(hotel => (
+                <div key={hotel.id} className={`p-5 rounded-[2rem] border-2 group ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100'}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <h5 className="font-black text-lg">{hotel.name}</h5>
+                    <button onClick={() => handleDeleteHotel(hotel.id)} className="text-zinc-400 hover:text-rose-500 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
+                  <p className="text-xs opacity-60 mb-2">{hotel.address}</p>
+                  <p className="text-sm font-bold text-indigo-500 mb-2">{hotel.price}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {hotel.amenities.slice(0, 3).map(a => (
+                      <span key={a} className="text-[9px] font-bold px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 opacity-60">{a}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -646,7 +826,14 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                {selectedPhoto.type === 'video' ? (
                  <video src={selectedPhoto.url} controls className="max-w-full max-h-full object-contain" />
                ) : (
-                 <img src={selectedPhoto.url} className="max-w-full max-h-full object-contain" alt="Zoomed" />
+                 <img 
+                   src={selectedPhoto.url} 
+                   className="max-w-full max-h-full object-contain" 
+                   alt="Zoomed"
+                   onError={(e) => {
+                     (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
+                   }}
+                 />
                )}
             </div>
 
@@ -686,7 +873,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                               {comment.author.charAt(0)}
                            </div>
                            <div>
-                              <p className="text-xs font-bold">{comment.author} <span className="text-[9px] font-normal opacity-50 ml-1">{new Date(comment.date).toLocaleDateString()}</span></p>
+                              <p className="text-xs font-bold">{comment.author} <span className="text-[9px] font-normal opacity-50 ml-1">{new Date(comment.date).toLocaleDateString()}</p>
                               <p className="text-sm opacity-80">{comment.text}</p>
                            </div>
                         </div>
@@ -821,12 +1008,28 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                 onLoad={recordMapLoad}
                 className="w-full h-full object-cover"
               ></iframe>
-              <button 
-                onClick={() => setIsMapExpanded(!isMapExpanded)}
-                className="absolute bottom-4 right-4 bg-black text-white dark:bg-white dark:text-black px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest shadow-xl z-20 hover:scale-105 active:scale-95 transition-all"
-              >
-                {isMapExpanded ? 'Collapse' : 'Expand'}
-              </button>
+              
+              {/* Controls Overlay */}
+              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end z-20 pointer-events-none">
+                 {/* Left: Open External App Button */}
+                 <a 
+                   href={getExternalMapsUrl(trip.location, currentDayEvents)}
+                   target="_blank"
+                   rel="noreferrer"
+                   className="pointer-events-auto bg-white text-blue-600 border border-blue-100 px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-widest shadow-xl hover:bg-blue-50 active:scale-95 transition-all flex items-center gap-2"
+                 >
+                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                   Open in Maps
+                 </a>
+
+                 {/* Right: Expand Button */}
+                 <button 
+                   onClick={() => setIsMapExpanded(!isMapExpanded)}
+                   className="pointer-events-auto bg-black text-white dark:bg-white dark:text-black px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all"
+                 >
+                   {isMapExpanded ? 'Collapse' : 'Expand'}
+                 </button>
+              </div>
             </div>
           )}
 
