@@ -1391,7 +1391,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
 
                  {/* How to get there */}
                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.howToGet there}</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.howToGetThere}</label>
                     <input 
                       value={eventForm.transportMethod || ''}
                       onChange={e => setEventForm({...eventForm, transportMethod: e.target.value})}
