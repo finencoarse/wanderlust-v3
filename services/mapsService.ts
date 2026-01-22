@@ -84,3 +84,38 @@ export const getMapUrl = (tripLocation: string, events: ItineraryItem[]): string
 
   return url;
 };
+
+/**
+ * Generates a Universal Cross-Platform URL to open the route in the native Google Maps App or Website.
+ */
+export const getExternalMapsUrl = (location: string, items: ItineraryItem[]): string => {
+  const validItems = items.filter(i => i.title && i.title.trim() !== '');
+  
+  if (validItems.length === 0) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+  }
+
+  if (validItems.length === 1) {
+     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(validItems[0].title + ', ' + location)}`;
+  }
+
+  // Define Origin and Destination
+  const origin = encodeURIComponent(`${validItems[0].title}, ${location}`);
+  const destination = encodeURIComponent(`${validItems[validItems.length - 1].title}, ${location}`);
+
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+
+  // Add Waypoints (Intermediate stops)
+  if (validItems.length > 2) {
+    const waypoints = validItems
+      .slice(1, -1) // Exclude first and last
+      .map(item => encodeURIComponent(`${item.title}, ${location}`))
+      .join('|'); // Google Maps uses pipe | as separator
+    url += `&waypoints=${waypoints}`;
+  }
+
+  // Add travel mode if specified in the first item (optional enhancement)
+  // url += "&travelmode=transit"; 
+
+  return url;
+};
