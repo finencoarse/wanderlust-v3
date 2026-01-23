@@ -66,6 +66,9 @@ const App: React.FC = () => {
     return 'onboarding';
   });
 
+  // Track the previous view to return to when exiting trip details
+  const [returnView, setReturnView] = useState<ViewState>('dashboard');
+
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<{ tripId: string, photo: Photo } | null>(null);
   const [showGuide, setShowGuide] = useState(false);
@@ -311,11 +314,13 @@ const App: React.FC = () => {
 
     handleSetTrips([...trips.filter(t => !selectedTripIds.includes(t.id)), combinedTrip]);
     setActiveTripId(combinedTrip.id);
+    setReturnView('calendar');
     setView('trip-detail');
   };
 
-  const openTrip = (id: string) => {
+  const openTrip = (id: string, fromView: ViewState = 'dashboard') => {
     setActiveTripId(id);
+    setReturnView(fromView);
     setView('trip-detail');
   };
 
@@ -376,8 +381,8 @@ const App: React.FC = () => {
       <Header setView={setView} currentView={view} language={language} darkMode={darkMode} userProfile={userProfile} onShowGuide={() => setShowGuide(true)} />
       
       <main className="max-w-4xl mx-auto px-4 py-6 md:py-12">
-        {view === 'dashboard' && <Dashboard trips={trips.filter(t => t.status === 'past')} onOpenTrip={openTrip} onUpdateTrip={handleUpdateTrip} onDeleteTrip={handleDeleteTrip} language={language} darkMode={darkMode} />}
-        {view === 'trip-detail' && activeTrip && <TripDetail key={activeTrip.id} trip={activeTrip} onUpdate={handleUpdateTrip} onEditPhoto={(photo: Photo) => { setEditingPhoto({ tripId: activeTrip.id, photo }); setView('editor'); }} onBack={() => setView('dashboard')} language={language} darkMode={darkMode} userProfile={userProfile} />}
+        {view === 'dashboard' && <Dashboard trips={trips.filter(t => t.status === 'past')} onOpenTrip={(id) => openTrip(id, 'dashboard')} onUpdateTrip={handleUpdateTrip} onDeleteTrip={handleDeleteTrip} language={language} darkMode={darkMode} />}
+        {view === 'trip-detail' && activeTrip && <TripDetail key={activeTrip.id} trip={activeTrip} onUpdate={handleUpdateTrip} onEditPhoto={(photo: Photo) => { setEditingPhoto({ tripId: activeTrip.id, photo }); setView('editor'); }} onBack={() => setView(returnView)} language={language} darkMode={darkMode} userProfile={userProfile} />}
         {view === 'planner' && (
           <Planner 
             trips={trips.filter(t => t.status === 'future')} 
@@ -387,7 +392,7 @@ const App: React.FC = () => {
             }} 
             onUpdateTrip={handleUpdateTrip} 
             onDeleteTrip={handleDeleteTrip}
-            onOpenTrip={openTrip} 
+            onOpenTrip={(id) => openTrip(id, 'planner')} 
             language={language} 
             darkMode={darkMode} 
             userProfile={userProfile} 
@@ -398,7 +403,7 @@ const App: React.FC = () => {
             fullData={{ trips, userProfile, customEvents }}
           />
         )}
-        {view === 'calendar' && <Calendar trips={trips} customEvents={customEvents} language={language} darkMode={darkMode} userProfile={userProfile} onOpenTrip={openTrip} onUpdateEvents={handleSetCustomEvents} onCombineTrips={handleCombineTrips} />}
+        {view === 'calendar' && <Calendar trips={trips} customEvents={customEvents} language={language} darkMode={darkMode} userProfile={userProfile} onOpenTrip={(id) => openTrip(id, 'calendar')} onUpdateEvents={handleSetCustomEvents} onCombineTrips={handleCombineTrips} onUpdateTrip={handleUpdateTrip} />}
         {view === 'budget' && <Budget trips={trips} language={language} darkMode={darkMode} onUpdateTrip={handleUpdateTrip} />}
         {view === 'editor' && editingPhoto && activeTrip && <ImageEditor photo={editingPhoto.photo} trip={activeTrip} onSave={(url: string, type?: 'image' | 'video') => {
           const updatedPhotos = activeTrip.photos.map(p => p.id === editingPhoto.photo.id ? { ...p, url, type } : p);
