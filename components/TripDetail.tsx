@@ -23,6 +23,20 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   
+  // Title & Cover Editing State
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState(trip.title);
+  const [isGeneratingCover, setIsGeneratingCover] = useState(false);
+
+  // Date Editing State
+  const [isEditingDates, setIsEditingDates] = useState(false);
+  const [dateForm, setDateForm] = useState({ start: trip.startDate, end: trip.endDate });
+
+  // Sync dateForm when trip updates externally
+  useEffect(() => {
+    setDateForm({ start: trip.startDate, end: trip.endDate });
+  }, [trip.startDate, trip.endDate]);
+
   // Flight Edit State
   const [showFlightModal, setShowFlightModal] = useState(false);
   const [editingFlightType, setEditingFlightType] = useState<'departure' | 'return' | 'complex' | null>(null);
@@ -61,10 +75,17 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
-    if (!selectedDate && Object.keys(trip.itinerary).length > 0) {
+    // If selectedDate is not in the current trip's itinerary keys (e.g. after date shift), reset it
+    const hasKeys = Object.keys(trip.itinerary).length > 0;
+    if (hasKeys && (!selectedDate || !trip.itinerary[selectedDate])) {
        setSelectedDate(Object.keys(trip.itinerary).sort()[0]);
+    } else if (!hasKeys) {
+       // If no itinerary, default to trip start date for context
+       if (!selectedDate || selectedDate < trip.startDate || selectedDate > trip.endDate) {
+         setSelectedDate(trip.startDate);
+       }
     }
-  }, [trip.itinerary]);
+  }, [trip.itinerary, trip.startDate, trip.endDate]);
 
   // Fetch Weather once on mount if dates are valid
   useEffect(() => {
@@ -87,6 +108,102 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       }
       return { ...prev, ...updates };
     });
+  };
+
+  const handleSaveTitle = () => {
+    onUpdate({ ...trip, title: titleInput });
+    setIsEditingTitle(false);
+  };
+
+  const handleSaveDates = () => {
+    if (!dateForm.start || !dateForm.end) return;
+
+    // Helper: Parse YYYY-MM-DD as UTC midnight to avoid timezone shift issues
+    const getUTCDate = (dateStr: string) => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d));
+    };
+
+    const oldStart = getUTCDate(trip.startDate);
+    const newStart = getUTCDate(dateForm.start);
+    
+    // Calculate difference in days using UTC timestamps
+    const diffTime = newStart.getTime() - oldStart.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    // Helper: Add days safely in UTC
+    const shiftDate = (dateStr: string, days: number): string => {
+        const d = getUTCDate(dateStr);
+        d.setUTCDate(d.getUTCDate() + days);
+        return d.toISOString().split('T')[0];
+    };
+
+    if (diffDays !== 0) {
+        // Shift Itinerary Keys
+        const newItinerary: Record<string, any[]> = {};
+        Object.entries(trip.itinerary).forEach(([d, items]) => {
+            newItinerary[shiftDate(d, diffDays)] = items;
+        });
+
+        // Shift Flights Keys
+        const newFlights: Record<string, any[]> = {};
+        if (trip.flights) {
+            Object.entries(trip.flights).forEach(([d, items]) => {
+                newFlights[shiftDate(d, diffDays)] = items;
+            });
+        }
+
+        // Shift Day Ratings
+        const newDayRatings: Record<string, number> = {};
+        if (trip.dayRatings) {
+            Object.entries(trip.dayRatings).forEach(([d, r]) => {
+                newDayRatings[shiftDate(d, diffDays)] = r;
+            });
+        }
+
+        // Shift Expenses
+        const newExpenses = (trip.expenses || []).map(exp => ({
+            ...exp,
+            date: exp.date ? shiftDate(exp.date, diffDays) : exp.date
+        }));
+
+        // Explicitly set the selected date to the NEW start date to update the view
+        setSelectedDate(dateForm.start);
+
+        onUpdate({
+            ...trip,
+            startDate: dateForm.start,
+            endDate: dateForm.end,
+            itinerary: newItinerary,
+            flights: newFlights,
+            dayRatings: newDayRatings,
+            expenses: newExpenses
+        });
+    } else {
+        // Just updating end date (duration change)
+        onUpdate({
+            ...trip,
+            startDate: dateForm.start,
+            endDate: dateForm.end
+        });
+    }
+
+    setIsEditingDates(false);
+  };
+
+  const handleGenerateCover = async () => {
+    setIsGeneratingCover(true);
+    try {
+      const prompt = `Cinematic travel photography of ${trip.location}, theme: ${trip.title}. High resolution, vibrant, majestic scenery, 4k.`;
+      const base64 = await GeminiService.generateImage(prompt);
+      if (base64) {
+        onUpdate({ ...trip, coverImage: base64 });
+      }
+    } catch (e) {
+      alert("Failed to generate image. Please check your API key and connection.");
+    } finally {
+      setIsGeneratingCover(false);
+    }
   };
 
   const handleSaveEvent = () => {
@@ -425,16 +542,64 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       <div className="relative h-64 md:h-80 rounded-[2.5rem] overflow-hidden shadow-2xl mb-8 group">
         <img src={trip.coverImage} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={trip.title} />
         <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+        
         <div className="absolute top-6 left-6 z-10">
           <button onClick={onBack} className="p-3 bg-white/20 backdrop-blur-md rounded-2xl text-white hover:bg-white/30 transition-all">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
           </button>
         </div>
+
+        <div className="absolute top-6 right-6 z-10 flex gap-2">
+             <button 
+                onClick={handleGenerateCover} 
+                disabled={isGeneratingCover}
+                className="p-3 bg-white/20 backdrop-blur-md rounded-2xl text-white hover:bg-white/30 transition-all flex items-center gap-2 font-bold text-xs uppercase tracking-widest disabled:opacity-50"
+             >
+                {isGeneratingCover ? <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : '✨'}
+                {isGeneratingCover ? t.processing : t.autoCover}
+             </button>
+        </div>
+
         <div className="absolute bottom-8 left-8 right-8 text-white">
-          <h1 className="text-4xl font-black mb-2 tracking-tight">{trip.title}</h1>
+          {isEditingTitle ? (
+             <div className="flex items-center gap-2 mb-2 animate-in fade-in">
+                <input 
+                  value={titleInput}
+                  onChange={(e) => setTitleInput(e.target.value)}
+                  className="bg-transparent border-b-2 border-white/50 text-4xl font-black text-white outline-none w-full"
+                  autoFocus
+                />
+                <button onClick={handleSaveTitle} className="p-2 bg-white text-black rounded-xl shadow-lg hover:scale-105 transition-transform"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg></button>
+                <button onClick={() => setIsEditingTitle(false)} className="p-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg></button>
+             </div>
+          ) : (
+             <div className="flex items-center gap-3 mb-2 group/title">
+                <h1 className="text-4xl font-black tracking-tight">{trip.title}</h1>
+                <button 
+                  onClick={() => { setTitleInput(trip.title); setIsEditingTitle(true); }}
+                  className="opacity-0 group-hover/title:opacity-100 p-2 hover:bg-white/20 rounded-xl transition-all text-white/80"
+                >
+                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                </button>
+             </div>
+          )}
+          
           <div className="flex items-center gap-4 text-sm font-bold opacity-90">
             <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-lg">📍 {trip.location}</span>
-            <span>📅 {trip.startDate} - {trip.endDate}</span>
+            {isEditingDates ? (
+               <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-2 py-1 rounded-lg">
+                  <input type="date" value={dateForm.start} onChange={e => setDateForm({...dateForm, start: e.target.value})} className="bg-transparent outline-none text-white w-32"/>
+                  <span>-</span>
+                  <input type="date" value={dateForm.end} onChange={e => setDateForm({...dateForm, end: e.target.value})} className="bg-transparent outline-none text-white w-32"/>
+                  <button onClick={handleSaveDates} className="p-1 bg-white text-black rounded hover:scale-105"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg></button>
+                  <button onClick={() => { setIsEditingDates(false); setDateForm({start: trip.startDate, end: trip.endDate}); }} className="p-1 hover:bg-white/20 rounded"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+               </div>
+            ) : (
+               <div className="flex items-center gap-2 group/date cursor-pointer" onClick={() => { setDateForm({start: trip.startDate, end: trip.endDate}); setIsEditingDates(true); }}>
+                  <span>📅 {trip.startDate} - {trip.endDate}</span>
+                  <span className="opacity-0 group-hover/date:opacity-100 transition-opacity"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></span>
+               </div>
+            )}
           </div>
         </div>
       </div>
@@ -464,12 +629,12 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
               <button
                 key={date}
                 onClick={() => setSelectedDate(date)}
-                className={`flex-shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all border-2 ${selectedDate === date 
+                className={`flex-shrink-0 w-20 h-20 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all border-2 ${selectedDate === date 
                   ? 'border-indigo-600 bg-indigo-600 text-white shadow-xl scale-110' 
                   : (darkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-700' : 'border-zinc-100 bg-white text-zinc-400 hover:border-zinc-200')}`}
               >
-                <span className="text-[10px] font-black uppercase">Day</span>
-                <span className="text-xl font-black">{index + 1}</span>
+                <span className="text-[10px] font-black uppercase">Day {index + 1}</span>
+                <span className="text-xs font-black">{new Date(date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</span>
                 {weather && weather[date] && (
                   <span className="text-xs">{weather[date].icon}</span>
                 )}
@@ -725,120 +890,6 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                </div>
              </div>
           </div>
-        </div>
-      )}
-
-      {/* Photos View */}
-      {activeTab === 'photos' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <label className={`aspect-square rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors ${darkMode ? 'border-zinc-800 hover:bg-zinc-900' : 'border-zinc-200 hover:bg-zinc-50'}`}>
-              <svg className="w-8 h-8 opacity-50 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.importMedia}</span>
-              <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-            </label>
-            {trip.photos.map(photo => (
-              <div key={photo.id} onClick={() => onEditPhoto(photo)} className="group relative aspect-square rounded-[2rem] overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all">
-                <img src={photo.url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={photo.caption} />
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold">Edit</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {/* Info View */}
-      {activeTab === 'info' && (
-        <div className="space-y-6">
-           <div className={`p-6 rounded-[2.5rem] border ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100'}`}>
-              <h3 className="text-xl font-black mb-4">Trip Details</h3>
-              <p className="opacity-70 leading-relaxed">{trip.description}</p>
-              
-              {/* RESTORED & EDITABLE: Simple Flight Details (Departure/Return) */}
-              {(!trip.flights || Object.keys(trip.flights).length === 0) && (
-                <div className="mt-8 space-y-6">
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                           <h4 className="font-bold uppercase text-xs tracking-widest opacity-50">{t.departure}</h4>
-                           {!trip.departureFlight && (
-                             <button onClick={() => handleOpenFlightModal('departure')} className="text-[10px] font-black text-indigo-500 hover:text-indigo-600 uppercase tracking-widest">+ Add Departure</button>
-                           )}
-                        </div>
-                        {trip.departureFlight && (
-                            <div className={`group p-3 rounded-xl border flex items-center gap-3 ${darkMode ? 'bg-black border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
-                                <div className="flex-1 min-w-0">
-                                    <div className="font-black truncate">{trip.departureFlight.code}</div>
-                                    <div className="text-xs opacity-60 truncate">{trip.departureFlight.airport}</div>
-                                </div>
-                                <div className="text-right flex-1 min-w-0">
-                                    <div className="text-xs font-bold truncate">{trip.departureFlight.gate ? `Gate ${trip.departureFlight.gate}` : ''}</div>
-                                    <div className="text-[10px] opacity-60 truncate">{trip.departureFlight.transport}</div>
-                                </div>
-                                <div className="flex gap-1 shrink-0 ml-2">
-                                   <button onClick={() => handleOpenFlightModal('departure')} className="p-1.5 bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 rounded-lg shadow hover:bg-indigo-50 dark:hover:bg-zinc-700"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                                   <button onClick={() => handleDeleteFlight('departure')} className="p-1.5 bg-white dark:bg-zinc-800 text-rose-500 rounded-lg shadow hover:bg-rose-50 dark:hover:bg-zinc-700"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                           <h4 className="font-bold uppercase text-xs tracking-widest opacity-50">{t.return}</h4>
-                           {!trip.returnFlight && (
-                             <button onClick={() => handleOpenFlightModal('return')} className="text-[10px] font-black text-indigo-500 hover:text-indigo-600 uppercase tracking-widest">+ Add Return</button>
-                           )}
-                        </div>
-                        {trip.returnFlight && (
-                            <div className={`group p-3 rounded-xl border flex items-center gap-3 ${darkMode ? 'bg-black border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
-                                <div className="flex-1 min-w-0">
-                                    <div className="font-black truncate">{trip.returnFlight.code}</div>
-                                    <div className="text-xs opacity-60 truncate">{trip.returnFlight.airport}</div>
-                                </div>
-                                <div className="text-right flex-1 min-w-0">
-                                    <div className="text-xs font-bold truncate">{trip.returnFlight.gate ? `Gate ${trip.returnFlight.gate}` : ''}</div>
-                                    <div className="text-[10px] opacity-60 truncate">{trip.returnFlight.transport}</div>
-                                </div>
-                                <div className="flex gap-1 shrink-0 ml-2">
-                                   <button onClick={() => handleOpenFlightModal('return')} className="p-1.5 bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 rounded-lg shadow hover:bg-indigo-50 dark:hover:bg-zinc-700"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                                   <button onClick={() => handleDeleteFlight('return')} className="p-1.5 bg-white dark:bg-zinc-800 text-rose-500 rounded-lg shadow hover:bg-rose-50 dark:hover:bg-zinc-700"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-              )}
-
-              {/* Complex Flight Itinerary (Multi-leg) - Now Editable */}
-              {trip.flights && Object.keys(trip.flights).length > 0 && (
-                <div className="mt-8 space-y-4">
-                  <h4 className="font-bold uppercase text-xs tracking-widest opacity-50">{t.flightDetails}</h4>
-                  {Object.entries(trip.flights).map(([date, flights]) => (
-                     <div key={date} className="space-y-2">
-                        <div className="text-xs font-black opacity-60">{date}</div>
-                        {(flights as FlightInfo[]).map((f, i) => (
-                           <div key={i} className={`group p-3 rounded-xl border flex items-center gap-3 ${darkMode ? 'bg-black border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
-                              <div className="flex-1 min-w-0">
-                                 <div className="font-black truncate">{f.code}</div>
-                                 <div className="text-xs opacity-60 truncate">{f.airport}</div>
-                              </div>
-                              <div className="text-right flex-1 min-w-0">
-                                 <div className="text-xs font-bold truncate">{f.gate ? `Gate ${f.gate}` : ''}</div>
-                                 <div className="text-[10px] opacity-60 truncate">{f.transport}</div>
-                              </div>
-                              <div className="flex gap-1 shrink-0 ml-2">
-                                 <button onClick={() => handleOpenFlightModal('complex', date, i)} className="p-1.5 bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 rounded-lg shadow hover:bg-indigo-50 dark:hover:bg-zinc-700"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                                 <button onClick={() => handleDeleteFlight('complex', date, i)} className="p-1.5 bg-white dark:bg-zinc-800 text-rose-500 rounded-lg shadow hover:bg-rose-50 dark:hover:bg-zinc-700"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                              </div>
-                           </div>
-                        ))}
-                     </div>
-                  ))}
-                </div>
-              )}
-           </div>
         </div>
       )}
 
