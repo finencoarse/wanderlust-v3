@@ -170,7 +170,10 @@ export const translations: Record<Language, any> = {
     recommendedHotels: "Recommended Stays",
     nightlyRate: "Nightly Rate",
     bookNow: "Check Offer",
-    analyzingPlan: "Analyzing Trip Plan..."
+    analyzingPlan: "Analyzing Trip Plan...",
+    imageResolution: "Image Resolution",
+    processing: "Processing...",
+    autoCover: "Auto Cover"
   },
   'zh-TW': {
     journal: "日誌",
@@ -340,7 +343,10 @@ export const translations: Record<Language, any> = {
     recommendedHotels: "推薦住宿",
     nightlyRate: "每晚價格",
     bookNow: "查看優惠",
-    analyzingPlan: "正在分析行程..."
+    analyzingPlan: "正在分析行程...",
+    imageResolution: "圖片解析度",
+    processing: "處理中...",
+    autoCover: "自動封面"
   },
   ja: {
     journal: "日誌",
@@ -510,7 +516,10 @@ export const translations: Record<Language, any> = {
     recommendedHotels: "おすすめのホテル",
     nightlyRate: "1泊料金",
     bookNow: "詳細を見る",
-    analyzingPlan: "旅程を分析中..."
+    analyzingPlan: "旅程を分析中...",
+    imageResolution: "画像解像度",
+    processing: "処理中...",
+    autoCover: "自動カバー"
   },
   ko: {
     journal: "저널",
@@ -680,6 +689,9 @@ export const translations: Record<Language, any> = {
     recommendedHotels: "추천 숙소",
     nightlyRate: "1박 요금",
     bookNow: "특가 확인",
-    analyzingPlan: "일정 분석 중..."
+    analyzingPlan: "일정 분석 중...",
+    imageResolution: "이미지 해상도",
+    processing: "처리 중...",
+    autoCover: "자동 커버"
   }
 };
