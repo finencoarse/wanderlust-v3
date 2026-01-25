@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Trip, Language, CustomEvent, UserProfile } from '../types';
 import { translations } from '../translations';
 import { HOLIDAY_DATABASE } from '../services/holidayDatabase';
@@ -34,6 +34,7 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
   // --- Drag and Drop State ---
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const touchItemRef = useRef<{ id: string, startDate: string } | null>(null);
 
   const toLocalISOString = (date: Date) => {
     const year = date.getFullYear();
@@ -130,49 +131,8 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
     }
   };
 
-  // --- NEW DRAG AND DROP LOGIC ---
-
-  const onDragStart = (e: React.DragEvent, tripId: string, startDate: string) => {
-    e.stopPropagation();
-    // Set standard data transfer
-    e.dataTransfer.setData('tripId', tripId);
-    e.dataTransfer.setData('startDate', startDate);
-    e.dataTransfer.effectAllowed = 'move';
-    
-    // Set internal state for visual feedback
-    setDraggingId(tripId);
-  };
-
-  const onDragOver = (e: React.DragEvent, dateStr: string) => {
-    e.preventDefault(); // CRITICAL: Allows the element to be a drop target
-    e.stopPropagation();
-    
-    e.dataTransfer.dropEffect = 'move';
-    if (dragOverDate !== dateStr) {
-      setDragOverDate(dateStr);
-    }
-  };
-
-  const onDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    // Optional: could clear dragOverDate here, but usually onDragOver handles the switch
-  };
-
-  const onDrop = (e: React.DragEvent, targetDate: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Clear visual states
-    setDraggingId(null);
-    setDragOverDate(null);
-
-    const tripId = e.dataTransfer.getData('tripId');
-    const originalDate = e.dataTransfer.getData('startDate');
-
-    if (!tripId || !originalDate) return;
-    
-    if (originalDate === targetDate) return;
-
+  // --- REUSABLE MOVE LOGIC ---
+  const executeMoveTrip = (tripId: string, originalDate: string, targetDate: string) => {
     const trip = trips.find(t => t.id === tripId);
     if (!trip) return;
 
@@ -180,17 +140,14 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
     if (diff === 0) return;
 
     if (window.confirm(`Move "${trip.title}" to start on ${targetDate}?`)) {
-        // Calculate new dates
         const newStartDate = addDays(trip.startDate, diff);
         const newEndDate = addDays(trip.endDate, diff);
 
-        // Shift Itinerary
         const newItinerary: Record<string, any[]> = {};
         Object.entries(trip.itinerary).forEach(([d, items]) => {
             newItinerary[addDays(d, diff)] = items;
         });
 
-        // Shift Flights
         const newFlights: Record<string, any[]> = {};
         if (trip.flights) {
             Object.entries(trip.flights).forEach(([d, items]) => {
@@ -198,7 +155,6 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
             });
         }
         
-        // Shift Ratings
         const newDayRatings: Record<string, number> = {};
         if (trip.dayRatings) {
             Object.entries(trip.dayRatings).forEach(([d, r]) => {
@@ -206,7 +162,6 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
             });
         }
 
-        // Shift Expenses
         const newExpenses = (trip.expenses || []).map(exp => ({
             ...exp,
             date: exp.date ? addDays(exp.date, diff) : exp.date
@@ -222,6 +177,93 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
             expenses: newExpenses
         });
     }
+  };
+
+  // --- DESKTOP DRAG HANDLERS ---
+
+  const onDragStart = (e: React.DragEvent, tripId: string, startDate: string) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('tripId', tripId);
+    e.dataTransfer.setData('startDate', startDate);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingId(tripId);
+  };
+
+  const onDragOver = (e: React.DragEvent, dateStr: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverDate !== dateStr) {
+      setDragOverDate(dateStr);
+    }
+  };
+
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const onDrop = (e: React.DragEvent, targetDate: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggingId(null);
+    setDragOverDate(null);
+
+    const tripId = e.dataTransfer.getData('tripId');
+    const originalDate = e.dataTransfer.getData('startDate');
+
+    if (tripId && originalDate && originalDate !== targetDate) {
+        executeMoveTrip(tripId, originalDate, targetDate);
+    }
+  };
+
+  // --- MOBILE TOUCH HANDLERS ---
+
+  const handleTouchStart = (e: React.TouchEvent, tripId: string, startDate: string) => {
+    // Only capture 1 finger touches
+    if (e.touches.length !== 1) return;
+    
+    // We do NOT call preventDefault here to allow scrolling to start if the user swipes quickly.
+    // However, if they hold and move, we might interpret it as a drag.
+    // For better UX, let's delay the "drag mode" slightly or just assume lateral moves are drags.
+    
+    touchItemRef.current = { id: tripId, startDate };
+    setDraggingId(tripId);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchItemRef.current) return;
+    
+    // Prevent default to stop scrolling while "dragging" the item
+    if (e.cancelable) e.preventDefault();
+
+    const touch = e.touches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    // Traverse up to find the date cell
+    const dateCell = target?.closest('[data-date]');
+    if (dateCell) {
+      const dateStr = dateCell.getAttribute('data-date');
+      if (dateStr && dateStr !== dragOverDate) {
+        setDragOverDate(dateStr);
+      }
+    } else {
+        setDragOverDate(null);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchItemRef.current) return;
+
+    const { id, startDate } = touchItemRef.current;
+    
+    if (dragOverDate && dragOverDate !== startDate) {
+        executeMoveTrip(id, startDate, dragOverDate);
+    }
+
+    // Reset
+    touchItemRef.current = null;
+    setDraggingId(null);
+    setDragOverDate(null);
   };
 
   const exportToIcal = () => {
@@ -276,9 +318,27 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-3xl font-black tracking-tight">{monthName}</h2>
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+      
+      {/* Header Section */}
+      <div className="flex flex-col gap-6">
+        
+        {/* Top Row: Month Title & Navigation & Regions */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <h2 className="text-4xl font-black tracking-tight text-zinc-900 dark:text-white">{monthName}</h2>
+            
+            {/* Month Navigation - Moved here */}
+            <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+              <button onClick={() => navigateMonth(-1)} className="p-2 rounded-lg hover:bg-white dark:hover:bg-zinc-700 shadow-sm transition-all text-zinc-500 dark:text-zinc-400 active:scale-95">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <button onClick={() => navigateMonth(1)} className="p-2 rounded-lg hover:bg-white dark:hover:bg-zinc-700 shadow-sm transition-all text-zinc-500 dark:text-zinc-400 active:scale-95">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Region Selector */}
           <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl overflow-x-auto no-scrollbar max-w-full">
             {Object.keys(HOLIDAY_DATABASE).map(region => (
               <button
@@ -296,12 +356,14 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
               </button>
             ))}
           </div>
+        </div>
 
-          <div className="flex gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar">
+        {/* Action Buttons Row */}
+        <div className="flex flex-wrap gap-3">
             <button 
               onClick={handleGoogleSync}
               disabled={isSyncing}
-              className="px-6 py-3 rounded-2xl bg-white border border-zinc-200 text-zinc-600 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-zinc-50 flex items-center gap-2 whitespace-nowrap dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 min-w-[140px] px-6 py-3 rounded-2xl bg-white border border-zinc-200 text-zinc-600 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-zinc-50 flex justify-center items-center gap-2 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSyncing ? (
                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -313,7 +375,7 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
 
             <button 
               onClick={exportToIcal}
-              className="px-6 py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center gap-2 whitespace-nowrap"
+              className="flex-1 min-w-[140px] px-6 py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-black text-[10px] uppercase tracking-widest transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex justify-center items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
               {t.exportToCalendar}
@@ -329,20 +391,10 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
                   setIsCombineMode(true);
                 }
               }}
-              className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${isCombineMode ? 'bg-indigo-600 text-white shadow-xl scale-105' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'}`}
+              className={`flex-1 min-w-[140px] px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${isCombineMode ? 'bg-indigo-600 text-white shadow-xl scale-105' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
             >
               {isCombineMode ? `${t.confirmSelection} (${selectedCombineIds.length})` : t.combineTrips}
             </button>
-            
-            <div className="flex gap-1">
-              <button onClick={() => navigateMonth(-1)} className="p-3 rounded-2xl border dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
-              </button>
-              <button onClick={() => navigateMonth(1)} className="p-3 rounded-2xl border dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"/></svg>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -368,8 +420,9 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
           return (
             <div 
               key={date.toISOString()}
+              data-date={dateStr} // Critical for Touch Element Detection
               onClick={() => handleDayClick(date)}
-              // Explicit Drag Events on the Cell Container
+              // Desktop Drag Events on the Cell Container
               onDragOver={(e) => onDragOver(e, dateStr)}
               onDragLeave={onDragLeave}
               onDrop={(e) => onDrop(e, dateStr)}
@@ -404,6 +457,10 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
                       key={trip.id}
                       draggable={!isCombineMode}
                       onDragStart={(e) => onDragStart(e, trip.id, dateStr)}
+                      // Mobile Touch Events
+                      onTouchStart={(e) => handleTouchStart(e, trip.id, dateStr)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isCombineMode) {
@@ -412,9 +469,9 @@ const Calendar: React.FC<CalendarProps> = ({ trips, customEvents, language, dark
                           onOpenTrip(trip.id);
                         }
                       }} 
-                      className={`w-full text-left text-[8px] font-black px-1.5 py-1 rounded shadow-md truncate transition-all transform hover:scale-[1.02] border cursor-grab active:cursor-grabbing
+                      className={`w-full text-left text-[8px] font-black px-1.5 py-1 rounded shadow-md truncate transition-all transform hover:scale-[1.02] border cursor-grab active:cursor-grabbing touch-none
                         ${selectedCombineIds.includes(trip.id) ? 'ring-2 ring-indigo-500 bg-indigo-600 text-white' : (trip.status === 'past' ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-indigo-500 border-indigo-600 text-white')}
-                        ${draggingId === trip.id ? 'opacity-50' : ''}
+                        ${draggingId === trip.id ? 'opacity-50 scale-105 shadow-xl z-50' : ''}
                       `}
                     >
                       ✈️ {trip.title}
