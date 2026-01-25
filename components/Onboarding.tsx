@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, Language } from '../types';
 import { translations } from '../translations';
+import { GeminiService } from '../services/geminiService';
 
 interface OnboardingProps {
   userProfile: UserProfile;
@@ -12,13 +13,44 @@ interface OnboardingProps {
   onComplete: () => void;
 }
 
-const COUNTRIES = [
-  "United States", "China", "Hong Kong", "Taiwan", "United Kingdom", "Japan"
+const DEFAULT_COUNTRIES = [
+  "United States", "China", "Hong Kong SAR", "Taiwan", "United Kingdom", "Japan", "Macau SAR", "South Korea"
 ];
 
 const Onboarding: React.FC<OnboardingProps> = ({ userProfile, setUserProfile, darkMode, setDarkMode, language, onComplete }) => {
   const t = translations[language];
   const [step, setStep] = useState(1);
+  
+  // Search State
+  const [countryQuery, setCountryQuery] = useState('');
+  const [countryResults, setCountryResults] = useState<string[]>(DEFAULT_COUNTRIES);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!countryQuery.trim()) {
+      setCountryResults(DEFAULT_COUNTRIES);
+      return;
+    }
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    setIsSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await GeminiService.searchCountries(countryQuery, language);
+        setCountryResults(results.length > 0 ? results : []);
+      } catch (error) {
+        console.error("Search failed", error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 600); // 600ms debounce
+
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [countryQuery, language]);
 
   const handlePfpUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,32 +123,45 @@ const Onboarding: React.FC<OnboardingProps> = ({ userProfile, setUserProfile, da
           <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
             <div className="space-y-6">
               <h3 className="text-xl font-black text-center">{t.selectCountry}</h3>
-              <div className="max-h-[340px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-                {COUNTRIES.map(country => {
+              
+              <div className="relative">
+                <input 
+                  autoFocus
+                  type="text" 
+                  value={countryQuery}
+                  onChange={(e) => setCountryQuery(e.target.value)}
+                  placeholder="Type to search (e.g. USA, Hong Kong)..."
+                  className={`w-full p-4 pl-12 rounded-2xl font-bold outline-none border-2 transition-all ${darkMode ? 'bg-zinc-900 border-zinc-800 focus:border-white placeholder-zinc-600' : 'bg-zinc-50 border-zinc-200 focus:border-black placeholder-zinc-400'}`}
+                />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                  {isSearching ? (
+                    <svg className="w-5 h-5 animate-spin text-indigo-500" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  ) : (
+                    <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  )}
+                </div>
+              </div>
+
+              <div className="max-h-[300px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                {countryResults.map((country, idx) => {
                   const isSelected = userProfile.nationality === country;
                   return (
                     <button
-                      key={country}
+                      key={idx}
                       onClick={() => setUserProfile({ ...userProfile, nationality: country })}
-                      className={`w-full p-5 rounded-2xl text-left font-bold transition-all duration-300
+                      className={`w-full p-4 rounded-xl text-left font-bold transition-all duration-200 flex justify-between items-center
                         ${isSelected 
-                          ? (darkMode 
-                              ? 'bg-white text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-[1.02]' 
-                              : 'bg-zinc-950 text-white shadow-[0_10px_20px_-5px_rgba(0,0,0,0.3)] scale-[1.02]')
-                          : (darkMode
-                              ? 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white'
-                              : 'bg-zinc-50 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 border border-transparent hover:border-zinc-200')
-                        }`}
+                          ? 'bg-indigo-600 text-white shadow-lg' 
+                          : (darkMode ? 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white' : 'bg-zinc-50 text-zinc-600 hover:bg-zinc-100 hover:text-black')}`}
                     >
-                      <div className="flex justify-between items-center">
-                        <span>{country}</span>
-                        {isSelected && (
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
-                        )}
-                      </div>
+                      <span>{country}</span>
+                      {isSelected && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>}
                     </button>
                   );
                 })}
+                {countryResults.length === 0 && !isSearching && (
+                  <div className="text-center py-8 text-zinc-500 text-sm font-bold opacity-50">No countries found.</div>
+                )}
               </div>
             </div>
             
