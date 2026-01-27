@@ -456,4 +456,33 @@ export class GeminiService {
       return FALLBACK_COUNTRIES.filter(c => c.toLowerCase().includes(lowerQuery));
     }
   }
+
+  static async extractHotelInfo(url: string, language: string = 'en'): Promise<Partial<Hotel> | null> {
+    try {
+      const prompt = `
+      Analyze this hotel website or search for this hotel: "${url}".
+      Extract details: Name, Description, Address, typical Price, Rating, Amenities, Check-in time, Check-out time, Room Types, Services Included.
+      Return JSON: { 
+        "name": "", 
+        "description": "", 
+        "address": "", 
+        "price": "", 
+        "rating": 0, 
+        "amenities": [], 
+        "checkIn": "", 
+        "checkOut": "",
+        "roomType": "",
+        "servicesIncluded": "",
+        "notes": ""
+      }
+      Translate content to ${language}.
+      `;
+      
+      const { text } = await this.generate('gemini-2.5-flash', prompt, { tools: [{ googleSearch: {} }] });
+      return this.extractJson(text);
+    } catch (e) {
+      console.error("Hotel extraction failed:", e);
+      return null;
+    }
+  }
 }
