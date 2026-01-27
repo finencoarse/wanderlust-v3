@@ -38,6 +38,13 @@ export interface Hotel {
   amenities: string[];
   bookingUrl?: string;
   reason?: string; // Why AI recommended it
+  // Enhanced fields
+  checkIn?: string;
+  checkOut?: string;
+  roomType?: string;
+  servicesIncluded?: string;
+  notes?: string;
+  website?: string;
 }
 
 export interface TourGuideData {
