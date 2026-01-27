@@ -46,7 +46,7 @@ const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, se
   const [countryResults, setCountryResults] = useState<string[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize inputs from storage
   useEffect(() => {
