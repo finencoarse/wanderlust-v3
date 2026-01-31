@@ -19,9 +19,18 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   const t = translations[language];
   const [activeTab, setActiveTab] = useState<'itinerary' | 'photos' | 'info' | 'accommodation'>('itinerary');
   const [selectedDate, setSelectedDate] = useState<string>(Object.keys(trip.itinerary).sort()[0] || trip.startDate);
+  const [itineraryView, setItineraryView] = useState<'day' | 'overview'>('day');
+  
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [editingEventDate, setEditingEventDate] = useState<string | null>(null);
   
+  // Drag and Drop State
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  
+  // Image Preview State (Lightbox)
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   // Title & Cover Editing State
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(trip.title);
@@ -64,16 +73,18 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
   const [editingHotelId, setEditingHotelId] = useState<string | null>(null);
 
-  // Event Form State
-  const [eventForm, setEventForm] = useState<Partial<ItineraryItem>>({
+  // Event Form State - Now includes 'date'
+  const [eventForm, setEventForm] = useState<Partial<ItineraryItem> & { date: string }>({
     title: '',
     description: '',
     time: '',
+    date: selectedDate, // Default to selected date
     period: 'morning',
     type: 'sightseeing',
     estimatedExpense: 0,
     transportMethod: '',
-    url: ''
+    url: '',
+    screenshot: ''
   });
 
   // Ensure selectedDate is valid
@@ -88,7 +99,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     }
   }, [trip.itinerary, trip.startDate, trip.endDate, selectedDate]);
 
-  // Fetch Weather - Fixed logic to ensure it runs
+  // Fetch Weather
   useEffect(() => {
     let isMounted = true;
     if (trip.location && trip.startDate && trip.endDate) {
@@ -109,7 +120,6 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   const handleSaveDates = () => {
     if (!dateForm.start || !dateForm.end) return;
     
-    // Helper to calculate date difference
     const getUTCDate = (dateStr: string) => {
         const [y, m, d] = dateStr.split('-').map(Number);
         return new Date(Date.UTC(y, m - 1, d));
@@ -183,10 +193,9 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   };
 
   const handleSaveEvent = () => {
-    if (!selectedDate || !eventForm.title) return;
+    if (!eventForm.date || !eventForm.title) return;
     
     let finalPeriod = eventForm.period;
-    // If no period is explicitly selected, try to infer from time, otherwise default to morning
     if (!finalPeriod) {
         if (eventForm.time) {
             const hour = parseInt(eventForm.time.split(':')[0], 10);
@@ -202,7 +211,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       id: editingEventId || Date.now().toString(),
       title: eventForm.title || 'New Event',
       description: eventForm.description || '',
-      time: eventForm.time || '', // Allow empty time string
+      time: eventForm.time || '', 
       period: finalPeriod as 'morning' | 'afternoon' | 'night',
       type: eventForm.type || 'sightseeing',
       estimatedExpense: eventForm.estimatedExpense || 0,
@@ -210,49 +219,88 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       currency: trip.defaultCurrency,
       transportMethod: eventForm.transportMethod,
       url: eventForm.url,
-      expenseParts: (editingEventId && trip.itinerary[selectedDate]?.find(i => i.id === editingEventId)?.expenseParts) || []
+      screenshot: eventForm.screenshot,
+      expenseParts: (editingEventId && editingEventDate && trip.itinerary[editingEventDate]?.find(i => i.id === editingEventId)?.expenseParts) || []
     };
 
-    const currentItems = trip.itinerary[selectedDate] || [];
-    let newItems;
-    if (editingEventId) {
-      newItems = currentItems.map(item => item.id === editingEventId ? { ...item, ...newItem } : item);
-    } else {
-      newItems = [...currentItems, newItem];
+    const newItinerary = { ...trip.itinerary };
+
+    if (editingEventId && editingEventDate) {
+        const sourceList = newItinerary[editingEventDate] || [];
+        newItinerary[editingEventDate] = sourceList.filter(i => i.id !== editingEventId);
     }
 
-    // Sort items
+    const targetDate = eventForm.date;
+    const targetList = newItinerary[targetDate] || [];
+    const newTargetList = [...targetList, newItem];
+
     const periodRank = { morning: 0, afternoon: 1, night: 2 };
-    newItems.sort((a, b) => {
+    newTargetList.sort((a, b) => {
       const rankA = periodRank[a.period || 'morning'];
       const rankB = periodRank[b.period || 'morning'];
       if (rankA !== rankB) return rankA - rankB;
       return (a.time || '').localeCompare(b.time || '');
     });
 
+    newItinerary[targetDate] = newTargetList;
+
     onUpdate({
       ...trip,
-      itinerary: { ...trip.itinerary, [selectedDate]: newItems }
+      itinerary: newItinerary
     });
+    
     setShowEventModal(false);
     setEditingEventId(null);
-    setEventForm({ title: '', description: '', time: '', period: 'morning', type: 'sightseeing', estimatedExpense: 0 });
+    setEditingEventDate(null);
+    setEventForm({ title: '', description: '', time: '', date: eventForm.date, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '' });
   };
 
-  const handleDeleteEvent = (eventId: string) => {
-    if (!selectedDate) return;
-    const newItems = trip.itinerary[selectedDate].filter(i => i.id !== eventId);
+  const handleMoveEvent = (eventId: string, sourceDate: string, targetDate: string) => {
+    if (sourceDate === targetDate) return;
+
+    const newItinerary = { ...trip.itinerary };
+    
+    // Remove from source
+    const sourceItems = newItinerary[sourceDate] || [];
+    const itemToMove = sourceItems.find(i => i.id === eventId);
+    if (!itemToMove) return;
+    
+    newItinerary[sourceDate] = sourceItems.filter(i => i.id !== eventId);
+
+    // Add to target
+    const targetItems = newItinerary[targetDate] || [];
+    const newItem = { ...itemToMove }; 
+    // We retain the original time and period, sorting happens below
+    
+    const newTargetList = [...targetItems, newItem];
+    
+    // Sort logic (matching handleSaveEvent)
+    const periodRank = { morning: 0, afternoon: 1, night: 2 };
+    newTargetList.sort((a, b) => {
+      const rankA = periodRank[a.period || 'morning'];
+      const rankB = periodRank[b.period || 'morning'];
+      if (rankA !== rankB) return rankA - rankB;
+      return (a.time || '').localeCompare(b.time || '');
+    });
+
+    newItinerary[targetDate] = newTargetList;
+
+    onUpdate({ ...trip, itinerary: newItinerary });
+  };
+
+  const handleDeleteEvent = (eventId: string, date: string) => {
+    const newItems = (trip.itinerary[date] || []).filter(i => i.id !== eventId);
     onUpdate({
       ...trip,
-      itinerary: { ...trip.itinerary, [selectedDate]: newItems }
+      itinerary: { ...trip.itinerary, [date]: newItems }
     });
     if (selectedDiscoveryId === eventId) setSelectedDiscoveryId(null);
   };
 
-  const handleEditEvent = (item: ItineraryItem) => {
+  const handleEditEvent = (item: ItineraryItem, date: string) => {
     setEditingEventId(item.id);
+    setEditingEventDate(date);
     
-    // Infer period if missing but time exists, for legacy data compatibility
     let initialPeriod = item.period;
     if (!initialPeriod && item.time) {
         const hour = parseInt(item.time.split(':')[0], 10);
@@ -261,10 +309,84 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
         else initialPeriod = 'morning';
     }
 
-    setEventForm({ ...item, period: initialPeriod || 'morning', time: item.time || '' });
+    setEventForm({ 
+        ...item, 
+        date: date,
+        period: initialPeriod || 'morning', 
+        time: item.time || '',
+        url: item.url || '',
+        screenshot: item.screenshot || ''
+    });
     setShowEventModal(true);
   };
 
+  // Drag and Drop Handlers
+  const onDragStart = (e: React.DragEvent, id: string, date: string) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id, date }));
+    e.dataTransfer.effectAllowed = 'move';
+    // Small delay to let the ghost image form before changing style
+    setTimeout(() => {
+        // Optional: add a class to the dragged item if you want to hide it
+    }, 0);
+  };
+
+  const onDragOver = (e: React.DragEvent, date: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverDate !== date) {
+      setDragOverDate(date);
+    }
+
+    // Auto-scroll logic
+    const SCROLL_THRESHOLD = 150; // Pixels from edge
+    const MIN_SCROLL_SPEED = 5;
+    const MAX_SCROLL_SPEED = 30;
+
+    if (e.clientY < SCROLL_THRESHOLD) {
+      // Scroll Up
+      const intensity = (SCROLL_THRESHOLD - e.clientY) / SCROLL_THRESHOLD; // 0 to 1
+      const speed = MIN_SCROLL_SPEED + (intensity * (MAX_SCROLL_SPEED - MIN_SCROLL_SPEED));
+      window.scrollBy(0, -speed);
+    } else if (e.clientY > window.innerHeight - SCROLL_THRESHOLD) {
+      // Scroll Down
+      const intensity = (e.clientY - (window.innerHeight - SCROLL_THRESHOLD)) / SCROLL_THRESHOLD;
+      const speed = MIN_SCROLL_SPEED + (intensity * (MAX_SCROLL_SPEED - MIN_SCROLL_SPEED));
+      window.scrollBy(0, speed);
+    }
+  };
+
+  const onDragLeave = (e: React.DragEvent) => {
+    // Only clear if leaving the container, this requires careful checking
+    // simpler: rely on onDragOver updating the date, and maybe onDrop clearing it
+  };
+
+  const onDrop = (e: React.DragEvent, targetDate: string) => {
+    e.preventDefault();
+    setDragOverDate(null);
+    
+    const dataStr = e.dataTransfer.getData('text/plain');
+    if (!dataStr) return;
+    
+    try {
+        const { id, date: sourceDate } = JSON.parse(dataStr);
+        if (sourceDate !== targetDate) {
+            handleMoveEvent(id, sourceDate, targetDate);
+        }
+    } catch(err) { console.error(err); }
+  };
+
+  const handleEventImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setEventForm(prev => ({ ...prev, screenshot: event.target?.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // ... (Other handlers unchanged: handleSmartRoute, handleDiscoverNearby, etc.)
   const handleSmartRoute = async () => {
     setIsOptimizing(true);
     setSmartRoute(null);
@@ -337,11 +459,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     try {
       const result = await GeminiService.extractHotelInfo(hotelUrlInput, language);
       if (result) {
-         setHotelForm({
-           ...hotelForm,
-           ...result,
-           website: hotelUrlInput
-         });
+         setHotelForm({ ...hotelForm, ...result, website: hotelUrlInput });
       }
     } catch (e) {
       console.error("Auto fill failed", e);
@@ -369,14 +487,12 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
        notes: hotelForm.notes,
        website: hotelForm.website
     };
-
     let updatedHotels = trip.hotels || [];
     if (editingHotelId) {
        updatedHotels = updatedHotels.map(h => h.id === editingHotelId ? newHotel : h);
     } else {
        updatedHotels = [...updatedHotels, newHotel];
     }
-
     onUpdate({ ...trip, hotels: updatedHotels });
     setShowHotelModal(false);
     setEditingHotelId(null);
@@ -407,15 +523,11 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     } else if (editingFlightType === 'complex') {
       const flights = { ...(updatedTrip.flights || {}) };
       const list = [...(flights[editingComplexDate] || [])];
-      
       if (editingComplexIndex >= 0) {
-        // Edit existing
         list[editingComplexIndex] = { ...list[editingComplexIndex], ...flightForm };
       } else {
-        // Add new
         list.push({ ...flightForm, label: `Flight ${list.length + 1}` });
       }
-      
       flights[editingComplexDate] = list;
       updatedTrip.flights = flights;
     }
@@ -432,11 +544,16 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     night: currentItinerary.filter(i => (i.period === 'night' || (!i.period && i.time && parseInt(i.time) >= 18)))
   };
 
-  const renderEventCard = (item: ItineraryItem) => (
+  const renderEventCard = (item: ItineraryItem, dateContext: string, isDraggable = false) => (
     <div 
       key={item.id} 
+      draggable={isDraggable}
+      onDragStart={(e) => isDraggable && onDragStart(e, item.id, dateContext)}
       onClick={() => setSelectedDiscoveryId(selectedDiscoveryId === item.id ? null : item.id)}
-      className={`group relative p-5 rounded-[2rem] border transition-all cursor-pointer ${selectedDiscoveryId === item.id ? 'ring-2 ring-indigo-500 scale-[1.02] shadow-xl z-10' : 'hover:scale-[1.01] hover:shadow-lg'} ${darkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-100'}`}
+      className={`group relative p-5 rounded-[2rem] border transition-all cursor-pointer 
+        ${isDraggable ? 'cursor-grab active:cursor-grabbing hover:shadow-xl active:scale-[0.98]' : 'hover:scale-[1.01] hover:shadow-lg'}
+        ${selectedDiscoveryId === item.id ? 'ring-2 ring-indigo-500 scale-[1.02] shadow-xl z-10' : ''} 
+        ${darkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-100'}`}
     >
       <div className="flex items-start gap-4">
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner shrink-0 ${
@@ -454,7 +571,16 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
             <h4 className="font-black text-lg truncate pr-2">{item.title}</h4>
-            <span className="text-xs font-mono font-bold opacity-50 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-lg whitespace-nowrap">{item.time || 'Flexible'}</span>
+            <div className="flex gap-2 shrink-0">
+               {/* Date Tag */}
+               <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 whitespace-nowrap">
+                 {new Date(dateContext).toLocaleDateString(undefined, {month:'short', day:'numeric'})}
+               </span>
+               {/* Time Tag */}
+               <span className="text-[10px] font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-1 rounded-lg whitespace-nowrap">
+                 {item.time || 'Flexible'}
+               </span>
+            </div>
           </div>
           {item.description && <p className="text-sm opacity-70 mt-1 line-clamp-2">{item.description}</p>}
           <div className="flex gap-3 mt-3">
@@ -469,14 +595,34 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                </span>
              )}
           </div>
+          
+          {(item.url || item.screenshot) && (
+            <div className="mt-3 pt-3 border-t border-dashed border-gray-200 dark:border-gray-800 flex flex-wrap gap-2">
+               {item.url && (
+                 <a href={item.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 text-xs font-bold hover:underline flex items-center gap-1">
+                   🔗 {item.url.length > 20 ? item.url.substring(0, 20) + '...' : item.url}
+                 </a>
+               )}
+               {item.screenshot && (
+                 <div className="relative group" onClick={(e) => e.stopPropagation()}>
+                    <img 
+                      src={item.screenshot} 
+                      alt="Screenshot" 
+                      className="w-16 h-16 object-cover rounded-xl border-2 border-zinc-100 dark:border-zinc-800 cursor-zoom-in hover:opacity-90 transition-opacity shadow-sm"
+                      onClick={(e) => { e.stopPropagation(); setPreviewImage(item.screenshot!); }}
+                    />
+                 </div>
+               )}
+            </div>
+          )}
         </div>
       </div>
       
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-        <button onClick={(e) => { e.stopPropagation(); handleEditEvent(item); }} className="p-2 bg-white dark:bg-zinc-800 rounded-xl shadow-lg hover:text-indigo-500">
+      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded-xl p-1">
+        <button onClick={(e) => { e.stopPropagation(); handleEditEvent(item, dateContext); }} className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 rounded-lg">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
         </button>
-        <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(item.id); }} className="p-2 bg-white dark:bg-zinc-800 rounded-xl shadow-lg hover:text-rose-500">
+        <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(item.id, dateContext); }} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/50 rounded-lg">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
         </button>
       </div>
@@ -572,154 +718,219 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       {/* Itinerary View */}
       {activeTab === 'itinerary' && (
         <div className="space-y-6">
-          <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-            {sortedDates.map((date, index) => (
-              <button
-                key={date}
-                onClick={() => setSelectedDate(date)}
-                className={`flex-shrink-0 w-20 h-20 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all border-2 ${selectedDate === date 
-                  ? 'border-indigo-600 bg-indigo-600 text-white shadow-xl scale-110' 
-                  : (darkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-700' : 'border-zinc-100 bg-white text-zinc-400 hover:border-zinc-200')}`}
-              >
-                <span className="text-[10px] font-black uppercase">Day {index + 1}</span>
-                <span className="text-xs font-black">{new Date(date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</span>
-                {weather && weather[date] && (
-                  <span className="text-xs">{weather[date].icon}</span>
-                )}
-              </button>
-            ))}
+          
+          {/* Day / Overview Toggle */}
+          <div className="flex justify-center mb-6">
+             <div className="flex p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-800">
+               <button 
+                 onClick={() => setItineraryView('day')}
+                 className={`px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${itineraryView === 'day' ? 'bg-white dark:bg-zinc-700 shadow-md text-indigo-600 dark:text-white' : 'text-zinc-400 hover:text-zinc-600'}`}
+               >
+                 Day View
+               </button>
+               <button 
+                 onClick={() => setItineraryView('overview')}
+                 className={`px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${itineraryView === 'overview' ? 'bg-white dark:bg-zinc-700 shadow-md text-indigo-600 dark:text-white' : 'text-zinc-400 hover:text-zinc-600'}`}
+               >
+                 Overview
+               </button>
+             </div>
           </div>
 
-          {/* Map & Weather Section */}
-          <div className={`rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100 shadow-xl'}`}>
-             <div 
-               className="p-6 flex justify-between items-center cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-               onClick={() => setShowMap(!showMap)}
-             >
-                <div className="flex items-center gap-3">
-                   <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl">
-                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
-                   </div>
-                   <h3 className="font-black text-lg">Map & Weather</h3>
-                </div>
-                <svg className={`w-5 h-5 transition-transform duration-300 ${showMap ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
-             </div>
-             
-             {showMap && (
-               <div className="animate-in slide-in-from-top-4 duration-300">
-                 {/* Weather Strip */}
-                 {weather && weather[selectedDate] && (
-                   <div className="px-6 pb-6 flex items-center gap-4">
-                      <div className="text-4xl">{weather[selectedDate].icon}</div>
-                      <div>
-                        <div className="font-black text-xl">{weather[selectedDate].temp}</div>
-                        <div className="text-xs opacity-60 font-bold uppercase tracking-widest">{weather[selectedDate].condition}</div>
-                      </div>
-                   </div>
-                 )}
+          {itineraryView === 'day' && (
+            <>
+              <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+                {sortedDates.map((date, index) => (
+                  <button
+                    key={date}
+                    onClick={() => setSelectedDate(date)}
+                    className={`flex-shrink-0 w-20 h-20 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all border-2 ${selectedDate === date 
+                      ? 'border-indigo-600 bg-indigo-600 text-white shadow-xl scale-110' 
+                      : (darkMode ? 'border-zinc-800 bg-zinc-900 text-zinc-500 hover:border-zinc-700' : 'border-zinc-100 bg-white text-zinc-400 hover:border-zinc-200')}`}
+                  >
+                    <span className="text-[10px] font-black uppercase">Day {index + 1}</span>
+                    <span className="text-xs font-black">{new Date(date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</span>
+                    {weather && weather[date] && (
+                      <span className="text-xs">{weather[date].icon}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
 
-                 {/* Google Map Embed */}
-                 <div className="aspect-video w-full bg-gray-100 dark:bg-zinc-800">
-                    <iframe
-                      width="100%"
-                      height="100%"
-                      style={{ border: 0 }}
-                      loading="lazy"
-                      allowFullScreen
-                      src={getMapUrl(trip.location, currentItinerary)}
-                    ></iframe>
-                 </div>
-
-                 {/* Smart Route AI */}
-                 <div className="p-6 space-y-4">
-                    <div className="flex justify-between items-center">
-                       <h4 className="font-bold text-sm uppercase tracking-widest opacity-60">{t.smartRoute}</h4>
-                       <button 
-                         onClick={handleSmartRoute}
-                         disabled={isOptimizing}
-                         className="text-xs font-black text-indigo-500 hover:text-indigo-600 flex items-center gap-1 disabled:opacity-50"
-                       >
-                         {isOptimizing ? t.optimizing : '✨ Optimize Route'}
-                       </button>
+              {/* Map & Weather Section */}
+              <div className={`rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100 shadow-xl'}`}>
+                 <div 
+                   className="p-6 flex justify-between items-center cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                   onClick={() => setShowMap(!showMap)}
+                 >
+                    <div className="flex items-center gap-3">
+                       <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl">
+                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                       </div>
+                       <h3 className="font-black text-lg">Map & Weather</h3>
                     </div>
-                    
-                    {smartRoute && (
-                      <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-sm space-y-3 animate-in fade-in">
-                        <p className="leading-relaxed whitespace-pre-wrap">{smartRoute.text}</p>
-                        {smartRoute.links && smartRoute.links.length > 0 && (
-                          <div className="flex flex-wrap gap-2 pt-2">
-                            {smartRoute.links.map((link, i) => (
-                              <a 
-                                key={i} 
-                                href={link.uri} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="px-3 py-1.5 rounded-lg bg-white dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-xs font-bold shadow-sm hover:shadow-md transition-all flex items-center gap-1"
-                              >
-                                📍 {link.title}
-                              </a>
-                            ))}
+                    <svg className={`w-5 h-5 transition-transform duration-300 ${showMap ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
+                 </div>
+                 
+                 {showMap && (
+                   <div className="animate-in slide-in-from-top-4 duration-300">
+                     {weather && weather[selectedDate] && (
+                       <div className="px-6 pb-6 flex items-center gap-4">
+                          <div className="text-4xl">{weather[selectedDate].icon}</div>
+                          <div>
+                            <div className="font-black text-xl">{weather[selectedDate].temp}</div>
+                            <div className="text-xs opacity-60 font-bold uppercase tracking-widest">{weather[selectedDate].condition}</div>
+                          </div>
+                       </div>
+                     )}
+                     <div className="aspect-video w-full bg-gray-100 dark:bg-zinc-800">
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          loading="lazy"
+                          allowFullScreen
+                          src={getMapUrl(trip.location, currentItinerary)}
+                        ></iframe>
+                     </div>
+                     <div className="p-6 space-y-4">
+                        <div className="flex justify-between items-center">
+                           <h4 className="font-bold text-sm uppercase tracking-widest opacity-60">{t.smartRoute}</h4>
+                           <button 
+                             onClick={handleSmartRoute}
+                             disabled={isOptimizing}
+                             className="text-xs font-black text-indigo-500 hover:text-indigo-600 flex items-center gap-1 disabled:opacity-50"
+                           >
+                             {isOptimizing ? t.optimizing : '✨ Optimize Route'}
+                           </button>
+                        </div>
+                        {smartRoute && (
+                          <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-sm space-y-3 animate-in fade-in">
+                            <p className="leading-relaxed whitespace-pre-wrap">{smartRoute.text}</p>
+                            {smartRoute.links && smartRoute.links.length > 0 && (
+                              <div className="flex flex-wrap gap-2 pt-2">
+                                {smartRoute.links.map((link, i) => (
+                                  <a 
+                                    key={i} 
+                                    href={link.uri} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="px-3 py-1.5 rounded-lg bg-white dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-xs font-bold shadow-sm hover:shadow-md transition-all flex items-center gap-1"
+                                  >
+                                    📍 {link.title}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
+                     </div>
+                   </div>
+                 )}
+              </div>
+
+              {/* Day specific events */}
+              <div className="space-y-4 min-h-[300px]">
+                <div className="flex justify-between items-center px-2">
+                  <h3 className="text-xl font-black">{new Date(selectedDate).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
+                  <button 
+                    onClick={() => {
+                      setEditingEventId(null);
+                      setEditingEventDate(selectedDate);
+                      setEventForm({ title: '', description: '', time: '', date: selectedDate, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '' });
+                      setShowEventModal(true);
+                    }}
+                    className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
+                  >
+                    + {t.addEvent}
+                  </button>
+                </div>
+
+                {currentItinerary.length === 0 ? (
+                  <div className={`p-12 text-center rounded-[2.5rem] border-2 border-dashed ${darkMode ? 'border-zinc-800 text-zinc-600' : 'border-zinc-200 text-zinc-400'}`}>
+                    <p className="font-bold">No events planned for this day.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    {groupedEvents.morning.length > 0 && (
+                      <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-100">
+                        <div className="flex items-center gap-2 px-2">
+                          <span className="text-xl">🌅</span>
+                          <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.morning}</h4>
+                        </div>
+                        {groupedEvents.morning.map(item => renderEventCard(item, selectedDate))}
                       </div>
                     )}
-                 </div>
-               </div>
-             )}
-          </div>
+                    {groupedEvents.afternoon.length > 0 && (
+                      <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-200">
+                        <div className="flex items-center gap-2 px-2">
+                          <span className="text-xl">☀️</span>
+                          <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.afternoon}</h4>
+                        </div>
+                        {groupedEvents.afternoon.map(item => renderEventCard(item, selectedDate))}
+                      </div>
+                    )}
+                    {groupedEvents.night.length > 0 && (
+                      <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-300">
+                        <div className="flex items-center gap-2 px-2">
+                          <span className="text-xl">🌙</span>
+                          <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.night}</h4>
+                        </div>
+                        {groupedEvents.night.map(item => renderEventCard(item, selectedDate))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
-          <div className="space-y-4 min-h-[300px]">
-            <div className="flex justify-between items-center px-2">
-              <h3 className="text-xl font-black">{new Date(selectedDate).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
-              <button 
-                onClick={() => {
-                  setEditingEventId(null);
-                  setEventForm({ title: '', description: '', time: '', period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency });
-                  setShowEventModal(true);
-                }}
-                className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
-              >
-                + {t.addEvent}
-              </button>
+          {itineraryView === 'overview' && (
+            <div className="space-y-12 animate-in fade-in">
+                {sortedDates.map((date) => {
+                   const items = trip.itinerary[date] || [];
+                   if (items.length === 0) return null;
+                   
+                   // Sort by time within the day
+                   const sortedItems = [...items].sort((a, b) => {
+                      const timeA = a.time || '00:00';
+                      const timeB = b.time || '00:00';
+                      return timeA.localeCompare(timeB);
+                   });
+
+                   return (
+                     <div 
+                        key={date} 
+                        onDragOver={(e) => onDragOver(e, date)}
+                        onDrop={(e) => onDrop(e, date)}
+                        className={`relative pl-8 transition-colors rounded-2xl p-4
+                          ${dragOverDate === date ? 'bg-indigo-50 dark:bg-indigo-900/10 border-2 border-indigo-500 border-dashed' : 'border-l-2 border-dashed border-zinc-200 dark:border-zinc-800'}`}
+                     >
+                        <div className="absolute -left-2.5 top-4 w-5 h-5 rounded-full bg-indigo-600 border-4 border-white dark:border-zinc-950 shadow-sm" />
+                        <h3 className="text-2xl font-black mb-6">{new Date(date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
+                        <div className="space-y-4">
+                           {sortedItems.map(item => renderEventCard(item, date, true))}
+                        </div>
+                     </div>
+                   );
+                })}
+                <div className="flex justify-center pt-8">
+                   <button 
+                    onClick={() => {
+                      setEditingEventId(null);
+                      setEditingEventDate(sortedDates[0] || trip.startDate);
+                      setEventForm({ title: '', description: '', time: '', date: sortedDates[0] || trip.startDate, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '' });
+                      setShowEventModal(true);
+                    }}
+                    className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all active:scale-95"
+                   >
+                     + {t.addEvent}
+                   </button>
+                </div>
             </div>
-
-            {currentItinerary.length === 0 ? (
-              <div className={`p-12 text-center rounded-[2.5rem] border-2 border-dashed ${darkMode ? 'border-zinc-800 text-zinc-600' : 'border-zinc-200 text-zinc-400'}`}>
-                <p className="font-bold">No events planned for this day.</p>
-              </div>
-            ) : (
-              <div className="space-y-8">
-                {groupedEvents.morning.length > 0 && (
-                  <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-100">
-                    <div className="flex items-center gap-2 px-2">
-                      <span className="text-xl">🌅</span>
-                      <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.morning}</h4>
-                    </div>
-                    {groupedEvents.morning.map(renderEventCard)}
-                  </div>
-                )}
-                {groupedEvents.afternoon.length > 0 && (
-                  <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-200">
-                    <div className="flex items-center gap-2 px-2">
-                      <span className="text-xl">☀️</span>
-                      <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.afternoon}</h4>
-                    </div>
-                    {groupedEvents.afternoon.map(renderEventCard)}
-                  </div>
-                )}
-                {groupedEvents.night.length > 0 && (
-                  <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-300">
-                    <div className="flex items-center gap-2 px-2">
-                      <span className="text-xl">🌙</span>
-                      <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.night}</h4>
-                    </div>
-                    {groupedEvents.night.map(renderEventCard)}
-                  </div>
-                )}
-              </div>
-            )}
-            
-            <div className="pt-4 flex justify-center">
+          )}
+          
+          <div className="pt-4 flex justify-center">
                {selectedDiscoveryId ? (
                  <button
                    onClick={() => setShowDiscoveryModal(true)}
@@ -740,26 +951,13 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                  </a>
                )}
             </div>
-          </div>
         </div>
       )}
 
       {/* Accommodation Tab */}
       {activeTab === 'accommodation' && (
         <div className="space-y-8 animate-in fade-in duration-500">
-           <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-2xl font-black">{t.accommodation}</h3>
-                <p className="text-xs font-bold opacity-50 uppercase tracking-widest">Manage your stays</p>
-              </div>
-              <button 
-                onClick={() => { setEditingHotelId(null); setHotelForm({}); setHotelUrlInput(''); setShowHotelModal(true); }}
-                className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
-              >
-                + {t.addHotel}
-              </button>
-           </div>
-
+           {/* ... existing code ... */}
            {/* Saved Hotels List */}
            {trip.hotels && trip.hotels.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -856,6 +1054,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       {/* Flight & Transport Info Tab */}
       {activeTab === 'info' && (
         <div className="space-y-8 animate-in fade-in duration-500">
+           {/* ... existing flight code ... */}
            <div className="flex justify-between items-center">
               <div>
                 <h3 className="text-2xl font-black">{t.flightDetails}</h3>
@@ -883,6 +1082,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                        <span className="px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest">{t.departure}</span>
                        <button onClick={() => { setEditingFlightType('departure'); setFlightForm(trip.departureFlight!); setShowFlightModal(true); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button>
                     </div>
+                    {/* ... details ... */}
                     <div className="space-y-4">
                        <div>
                           <div className="text-xs opacity-50 uppercase tracking-widest">{t.flightCode}</div>
@@ -964,6 +1164,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                                 <div className="text-xs opacity-50 uppercase tracking-widest">{t.gate}</div>
                                 <div className="font-bold">{flight.gate || 'N/A'}</div>
                              </div>
+                             {/* ... times ... */}
                              <div>
                                 <div className="text-xs opacity-50 uppercase tracking-widest">{t.depTime}</div>
                                 <div className="font-bold">
@@ -1007,6 +1208,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                        <span className="px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest">{t.return}</span>
                        <button onClick={() => { setEditingFlightType('return'); setFlightForm(trip.returnFlight!); setShowFlightModal(true); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button>
                     </div>
+                    {/* ... details ... */}
                     <div className="space-y-4">
                        <div>
                           <div className="text-xs opacity-50 uppercase tracking-widest">{t.flightCode}</div>
@@ -1054,6 +1256,44 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                        </div>
                     </div>
                  </div>
+              )}
+           </div>
+
+           {/* Planning Resources Section */}
+           <div className={`p-6 rounded-[2.5rem] border ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100'}`}>
+              <h3 className="text-2xl font-black mb-6">Planning Resources</h3>
+              
+              {trip.resources && trip.resources.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {trip.resources.map(resource => (
+                    <a 
+                      key={resource.id} 
+                      href={resource.url} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className={`flex gap-4 p-4 rounded-2xl border transition-all hover:scale-[1.01] hover:shadow-lg ${darkMode ? 'bg-black border-zinc-800 hover:border-zinc-700' : 'bg-zinc-50 border-zinc-200 hover:border-zinc-300'}`}
+                    >
+                      <div className="w-24 h-20 rounded-xl bg-zinc-200 dark:bg-zinc-800 shrink-0 overflow-hidden">
+                        {resource.image ? (
+                          <img src={resource.image} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-3xl opacity-30">🔗</div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        <div className="font-bold text-base truncate mb-1">{resource.title}</div>
+                        <div className="text-xs opacity-50 truncate flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                          {resource.url}
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 border-2 border-dashed rounded-2xl opacity-40">
+                  <p className="font-bold text-sm">No resources added during planning.</p>
+                </div>
               )}
            </div>
         </div>
@@ -1245,7 +1485,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       {showEventModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEventModal(false)} />
-          <div className={`relative w-full max-w-lg p-6 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+          <div className={`relative w-full max-w-lg p-6 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
              <h3 className="text-2xl font-black mb-6">{editingEventId ? t.updateEvent : t.addEvent}</h3>
              
              <div className="space-y-4">
@@ -1258,7 +1498,16 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                    />
                 </div>
                 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                   <div className="space-y-1">
+                     <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Date</label>
+                     <input 
+                       type="date" 
+                       value={eventForm.date} 
+                       onChange={e => setEventForm({...eventForm, date: e.target.value})} 
+                       className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                     />
+                   </div>
                    <div className="space-y-1">
                      <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.time}</label>
                      <input 
@@ -1268,6 +1517,9 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                        className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
                      />
                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                    <div className="space-y-1">
                      <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.period}</label>
                      <select 
@@ -1305,6 +1557,34 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                    />
                 </div>
 
+                {/* Refined Resources Section */}
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Resources</label>
+                   <div className="flex gap-2">
+                      <input 
+                        value={eventForm.url || ''}
+                        onChange={e => setEventForm({...eventForm, url: e.target.value})}
+                        placeholder="http://..."
+                        className={`flex-1 p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                      />
+                      <label className={`p-3 rounded-xl border-2 cursor-pointer flex items-center justify-center transition-colors ${darkMode ? 'bg-zinc-950 border-zinc-800 hover:bg-zinc-900' : 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100'}`}>
+                        <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h14a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleEventImageUpload} />
+                      </label>
+                   </div>
+                   {eventForm.screenshot && (
+                      <div className="relative mt-2 w-full h-32 rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-800 group">
+                         <img src={eventForm.screenshot} className="w-full h-full object-cover" />
+                         <button 
+                           onClick={() => setEventForm({...eventForm, screenshot: ''})} 
+                           className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                         >
+                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                         </button>
+                      </div>
+                   )}
+                </div>
+
                 <div className="space-y-1">
                    <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.estimated} ({trip.defaultCurrency})</label>
                    <input 
@@ -1321,6 +1601,23 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                 </div>
              </div>
           </div>
+        </div>
+      )}
+
+      {/* Image Preview Lightbox */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button className="absolute top-6 right-6 p-3 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+          <img 
+            src={previewImage} 
+            className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl" 
+            onClick={e => e.stopPropagation()} 
+          />
         </div>
       )}
     </div>
