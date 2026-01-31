@@ -168,8 +168,6 @@ export class GeminiService {
       const mimeTypeMatch = parts[0].match(/:(.*?);/);
       const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
 
-      // For proxy compatibility, we construct the 'contents' array structure manually
-      // The generate() method will pass this directly to SDK or Proxy
       const contents = [
         {
           parts: [
@@ -186,10 +184,6 @@ export class GeminiService {
         }
       ];
 
-      // Note: We access the low-level generate directly because we need specific model handling
-      // For images, we can't easily use the generic wrapper if we need to return the blob
-      // So we implement logic here similar to generate()
-      
       const apiKey = process.env.API_KEY;
       let response;
 
@@ -209,7 +203,6 @@ export class GeminiService {
          response = await res.json();
       }
 
-      // Handle response structure (Proxy returns serialized object, SDK returns class)
       const candidates = response.candidates;
       if (!candidates?.[0]?.content?.parts) return null;
 
@@ -265,30 +258,29 @@ export class GeminiService {
   static async getMapRoute(location: string, items: ItineraryItem[], language: string = 'en'): Promise<{ text: string; links: { uri: string; title: string }[] }> {
     try {
       let latLng = undefined;
-      // Note: Geolocation works on client side only.
-      // If using proxy, the proxy can't see client's navigator. 
-      // We pass the coordinates in toolConfig.
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 });
-        });
-        latLng = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-      } catch (e) { /* ignore */ }
+      // Defensive check for geolocation (might not exist in non-secure contexts or server-side)
+      if (typeof navigator !== 'undefined' && navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 });
+          });
+          latLng = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        } catch (e) { /* ignore geolocation error */ }
+      }
 
       const itemTitles = items.map(i => i.title).join(', ');
       const prompt = `Visiting ${location}. Itinerary: ${itemTitles}. 
       Suggest efficient route. Explain order. Provide Google Maps links.
       Respond in ${language}.`;
 
-      const config = {
-        tools: [{ googleMaps: {} }],
-        toolConfig: { retrievalConfig: { latLng } }
+      const config: any = {
+        tools: [{ googleMaps: {} }]
       };
-
-      // We need to access grounding metadata, so we can't use the simple generate() wrapper which returns text only
-      // We'll reimplement the call logic here or modify generate() to return more data.
-      // Let's reimplement locally for precision.
       
+      if (latLng) {
+        config.toolConfig = { retrievalConfig: { latLng } };
+      }
+
       const apiKey = process.env.API_KEY;
       let response;
 
