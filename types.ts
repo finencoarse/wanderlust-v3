@@ -26,6 +26,8 @@ export interface FlightInfo {
   label?: string;
   price?: number;      // Estimated cost
   actualPrice?: number; // Actual cost
+  departureTime?: string;
+  arrivalTime?: string;
 }
 
 export interface Hotel {
@@ -144,6 +146,8 @@ export type ViewState = 'onboarding' | 'dashboard' | 'trip-detail' | 'planner' |
 export type Language = 'en' | 'zh-TW' | 'ja' | 'ko';
 
 export type FontSize = 'small' | 'medium' | 'large';
+
+export type DeviceViewMode = 'full' | 'mobile' | 'tablet';
 
 export interface TripVersion {
   id: string;
