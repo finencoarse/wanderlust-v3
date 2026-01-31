@@ -407,9 +407,15 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     } else if (editingFlightType === 'complex') {
       const flights = { ...(updatedTrip.flights || {}) };
       const list = [...(flights[editingComplexDate] || [])];
+      
       if (editingComplexIndex >= 0) {
+        // Edit existing
         list[editingComplexIndex] = { ...list[editingComplexIndex], ...flightForm };
+      } else {
+        // Add new
+        list.push({ ...flightForm, label: `Flight ${list.length + 1}` });
       }
+      
       flights[editingComplexDate] = list;
       updatedTrip.flights = flights;
     }
@@ -741,7 +747,6 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       {/* Accommodation Tab */}
       {activeTab === 'accommodation' && (
         <div className="space-y-8 animate-in fade-in duration-500">
-           
            <div className="flex justify-between items-center">
               <div>
                 <h3 className="text-2xl font-black">{t.accommodation}</h3>
@@ -826,6 +831,152 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                    {isSearchingHotels ? t.analyzingPlan : t.findHotels}
                  </button>
               </div>
+           </div>
+        </div>
+      )}
+
+      {/* Photos Tab */}
+      {activeTab === 'photos' && (
+        <div className="animate-in fade-in duration-500 grid grid-cols-2 md:grid-cols-3 gap-4 pb-20">
+           {trip.photos.length > 0 ? trip.photos.map(photo => (
+             <div key={photo.id} className="relative aspect-square rounded-2xl overflow-hidden group cursor-pointer" onClick={() => onEditPhoto(photo)}>
+                <img src={photo.url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                   <p className="text-white text-xs font-bold truncate">{photo.caption}</p>
+                </div>
+             </div>
+           )) : (
+             <div className="col-span-full py-12 text-center opacity-50 font-bold">
+               {t.noMemories}
+             </div>
+           )}
+        </div>
+      )}
+
+      {/* Flight & Transport Info Tab */}
+      {activeTab === 'info' && (
+        <div className="space-y-8 animate-in fade-in duration-500">
+           <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-black">{t.flightDetails}</h3>
+                <p className="text-xs font-bold opacity-50 uppercase tracking-widest">{t.transportPlan}</p>
+              </div>
+              <button
+                onClick={() => {
+                   setEditingFlightType('complex');
+                   setEditingComplexDate(trip.startDate);
+                   setEditingComplexIndex(-1);
+                   setFlightForm({ code: '', airport: '', gate: '', transport: '' });
+                   setShowFlightModal(true);
+                }}
+                className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
+              >
+                + Add Flight
+              </button>
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Departure */}
+              {trip.departureFlight && (
+                 <div className={`p-6 rounded-[2.5rem] border relative group ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100'}`}>
+                    <div className="flex justify-between items-start mb-4">
+                       <span className="px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest">{t.departure}</span>
+                       <button onClick={() => { setEditingFlightType('departure'); setFlightForm(trip.departureFlight!); setShowFlightModal(true); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button>
+                    </div>
+                    <div className="space-y-4">
+                       <div>
+                          <div className="text-xs opacity-50 uppercase tracking-widest">{t.flightCode}</div>
+                          <div className="text-2xl font-black">{trip.departureFlight.code || 'N/A'}</div>
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                          <div>
+                             <div className="text-xs opacity-50 uppercase tracking-widest">{t.airport}</div>
+                             <div className="font-bold">{trip.departureFlight.airport || 'N/A'}</div>
+                          </div>
+                          <div>
+                             <div className="text-xs opacity-50 uppercase tracking-widest">{t.gate}</div>
+                             <div className="font-bold">{trip.departureFlight.gate || 'N/A'}</div>
+                          </div>
+                       </div>
+                       <div>
+                          <div className="text-xs opacity-50 uppercase tracking-widest">{t.transport}</div>
+                          <div className="font-bold">{trip.departureFlight.transport || 'N/A'}</div>
+                       </div>
+                    </div>
+                 </div>
+              )}
+
+              {/* Complex/Other Flights */}
+              {trip.flights && Object.entries(trip.flights).map(([date, flights]) => (
+                 (flights as FlightInfo[]).map((flight, idx) => (
+                    <div key={`${date}-${idx}`} className={`p-6 rounded-[2.5rem] border relative group ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100'}`}>
+                       <div className="flex justify-between items-start mb-4">
+                          <span className="px-3 py-1 rounded-lg bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest">{flight.label || date}</span>
+                          <div className="flex gap-1">
+                             <button onClick={() => { setEditingFlightType('complex'); setEditingComplexDate(date); setEditingComplexIndex(idx); setFlightForm(flight); setShowFlightModal(true); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button>
+                             <button onClick={() => {
+                                 const newFlights = { ...trip.flights };
+                                 const list = [...(newFlights[date] || [])];
+                                 list.splice(idx, 1);
+                                 if (list.length === 0) delete newFlights[date];
+                                 else newFlights[date] = list;
+                                 onUpdate({ ...trip, flights: newFlights });
+                             }} className="p-2 hover:bg-rose-100 text-rose-500 rounded-xl transition-colors"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                          </div>
+                       </div>
+                       <div className="space-y-4">
+                          <div>
+                             <div className="text-xs opacity-50 uppercase tracking-widest">{t.flightCode}</div>
+                             <div className="text-2xl font-black">{flight.code || 'N/A'}</div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                             <div>
+                                <div className="text-xs opacity-50 uppercase tracking-widest">{t.airport}</div>
+                                <div className="font-bold">{flight.airport || 'N/A'}</div>
+                             </div>
+                             <div>
+                                <div className="text-xs opacity-50 uppercase tracking-widest">{t.gate}</div>
+                                <div className="font-bold">{flight.gate || 'N/A'}</div>
+                             </div>
+                          </div>
+                          <div>
+                             <div className="text-xs opacity-50 uppercase tracking-widest">{t.transport}</div>
+                             <div className="font-bold">{flight.transport || 'N/A'}</div>
+                          </div>
+                       </div>
+                    </div>
+                 ))
+              ))}
+
+              {/* Return */}
+              {trip.returnFlight && (
+                 <div className={`p-6 rounded-[2.5rem] border relative group ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100'}`}>
+                    <div className="flex justify-between items-start mb-4">
+                       <span className="px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest">{t.return}</span>
+                       <button onClick={() => { setEditingFlightType('return'); setFlightForm(trip.returnFlight!); setShowFlightModal(true); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button>
+                    </div>
+                    <div className="space-y-4">
+                       <div>
+                          <div className="text-xs opacity-50 uppercase tracking-widest">{t.flightCode}</div>
+                          <div className="text-2xl font-black">{trip.returnFlight.code || 'N/A'}</div>
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                          <div>
+                             <div className="text-xs opacity-50 uppercase tracking-widest">{t.airport}</div>
+                             <div className="font-bold">{trip.returnFlight.airport || 'N/A'}</div>
+                          </div>
+                          <div>
+                             <div className="text-xs opacity-50 uppercase tracking-widest">{t.gate}</div>
+                             <div className="font-bold">{trip.returnFlight.gate || 'N/A'}</div>
+                          </div>
+                       </div>
+                       <div>
+                          <div className="text-xs opacity-50 uppercase tracking-widest">{t.transport}</div>
+                          <div className="font-bold">{trip.returnFlight.transport || 'N/A'}</div>
+                       </div>
+                    </div>
+                 </div>
+              )}
            </div>
         </div>
       )}
@@ -968,9 +1119,15 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFlightModal(false)} />
           <div className={`relative w-full max-w-sm p-6 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
              <h3 className="text-2xl font-black mb-6">
-                {editingFlightType === 'departure' ? 'Departure Flight' : editingFlightType === 'return' ? 'Return Flight' : 'Flight Details'}
+                {editingFlightType === 'departure' ? 'Departure Flight' : editingFlightType === 'return' ? 'Return Flight' : (editingComplexIndex === -1 ? 'Add Flight' : 'Edit Flight')}
              </h3>
              <div className="space-y-4">
+                {editingFlightType === 'complex' && (
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Date</label>
+                      <input type="date" value={editingComplexDate} onChange={e => setEditingComplexDate(e.target.value)} className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} />
+                   </div>
+                )}
                 <div className="space-y-1">
                    <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.flightCode}</label>
                    <input value={flightForm.code} onChange={e => setFlightForm({...flightForm, code: e.target.value})} className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} />
