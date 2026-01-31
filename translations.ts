@@ -184,7 +184,13 @@ export const translations: Record<Language, any> = {
     roomType: "Room Type",
     servicesIncluded: "Services Included",
     notes: "Notes",
-    analyzingUrl: "Analyzing URL..."
+    analyzingUrl: "Analyzing URL...",
+    devicePreview: "Device Simulator",
+    viewFull: "Desktop / Full",
+    viewMobile: "Mobile",
+    viewTablet: "Tablet",
+    depTime: "🛫 Takeoff",
+    arrTime: "🛬 Landing"
   },
   'zh-TW': {
     journal: "日誌",
@@ -368,7 +374,13 @@ export const translations: Record<Language, any> = {
     roomType: "房型",
     servicesIncluded: "包含服務",
     notes: "備註",
-    analyzingUrl: "分析網址中..."
+    analyzingUrl: "分析網址中...",
+    devicePreview: "裝置模擬",
+    viewFull: "全螢幕 / 桌機",
+    viewMobile: "手機",
+    viewTablet: "平板",
+    depTime: "🛫 起飛時間",
+    arrTime: "🛬 降落時間"
   },
   ja: {
     journal: "日誌",
@@ -552,7 +564,13 @@ export const translations: Record<Language, any> = {
     roomType: "部屋タイプ",
     servicesIncluded: "含まれるサービス",
     notes: "メモ",
-    analyzingUrl: "URLを分析中..."
+    analyzingUrl: "URLを分析中...",
+    devicePreview: "デバイスシミュレーター",
+    viewFull: "デスクトップ",
+    viewMobile: "モバイル",
+    viewTablet: "タブレット",
+    depTime: "🛫 出発時刻",
+    arrTime: "🛬 到着時刻"
   },
   ko: {
     journal: "저널",
@@ -736,6 +754,12 @@ export const translations: Record<Language, any> = {
     roomType: "객실 유형",
     servicesIncluded: "포함된 서비스",
     notes: "메모",
-    analyzingUrl: "URL 분석 중..."
+    analyzingUrl: "URL 분석 중...",
+    devicePreview: "기기 시뮬레이터",
+    viewFull: "데스크탑 / 전체",
+    viewMobile: "모바일",
+    viewTablet: "태블릿",
+    depTime: "🛫 출발 시간",
+    arrTime: "🛬 도착 시간"
   }
 };
