@@ -83,18 +83,21 @@ const extractLocationFromUrl = (url?: string): string | null => {
 
 /**
  * Generates the Google Maps Embed URL based on the trip location and itinerary events.
- * Prioritizes locations extracted from event resource URLs.
+ * Prioritizes explicitly provided address, then extracted URL location, then title.
  */
 export const getMapUrl = (tripLocation: string, events: ItineraryItem[]): string => {
   const baseUrl = 'https://www.google.com/maps/embed/v1';
   
   // Resolve locations for each event
   const locations: string[] = events.map(e => {
-    // 1. Try to get precise location from URL
+    // 1. Explicit Address (Highest priority)
+    if (e.address && e.address.trim() !== '') return e.address;
+
+    // 2. Try to get precise location from URL
     const urlLocation = extractLocationFromUrl(e.url);
     if (urlLocation) return urlLocation;
     
-    // 2. Fallback to Title + Trip Location context
+    // 3. Fallback to Title + Trip Location context
     if (e.title && e.title.trim() !== '') {
         // Simple heuristic: if title looks like a place, use it.
         return `${e.title}, ${tripLocation}`;
@@ -140,6 +143,7 @@ export const getMapUrl = (tripLocation: string, events: ItineraryItem[]): string
  */
 export const getExternalMapsUrl = (location: string, items: ItineraryItem[]): string => {
   const locations: string[] = items.map(e => {
+    if (e.address && e.address.trim() !== '') return e.address;
     const urlLocation = extractLocationFromUrl(e.url);
     if (urlLocation) return urlLocation;
     if (e.title && e.title.trim() !== '') return `${e.title}, ${location}`;
