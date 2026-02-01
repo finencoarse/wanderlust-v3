@@ -48,38 +48,88 @@ export const getMapUsage = (): number => {
 };
 
 /**
+ * Extracts a location query from a Google Maps URL.
+ */
+const extractLocationFromUrl = (url?: string): string | null => {
+  if (!url) return null;
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.hostname.includes('google.com') && urlObj.pathname.includes('/maps')) {
+      // Handle /maps/place/LocationName
+      // Example: https://www.google.com/maps/place/Eiffel+Tower/...
+      if (urlObj.pathname.includes('/place/')) {
+        const parts = urlObj.pathname.split('/place/');
+        if (parts[1]) {
+          // Take the part before the next slash (if any) or query params
+          let query = parts[1].split('/')[0];
+          // Replace + with space and decode
+          return decodeURIComponent(query.replace(/\+/g, ' '));
+        }
+      }
+      
+      // Handle query param ?q=Location or ?query=Location
+      // Example: https://www.google.com/maps?q=35.6895,139.6917
+      const q = urlObj.searchParams.get('q');
+      if (q) return q;
+      
+      const query = urlObj.searchParams.get('query');
+      if (query) return query;
+    }
+  } catch (e) {
+    // Ignore invalid URLs
+  }
+  return null;
+};
+
+/**
  * Generates the Google Maps Embed URL based on the trip location and itinerary events.
+ * Prioritizes locations extracted from event resource URLs.
  */
 export const getMapUrl = (tripLocation: string, events: ItineraryItem[]): string => {
   const baseUrl = 'https://www.google.com/maps/embed/v1';
   
-  // Filter out transport items or items without titles if needed, 
-  // currently we use all items with titles.
-  const validEvents = events.filter(e => e.title && e.title.trim() !== '');
+  // Resolve locations for each event
+  const locations: string[] = events.map(e => {
+    // 1. Try to get precise location from URL
+    const urlLocation = extractLocationFromUrl(e.url);
+    if (urlLocation) return urlLocation;
+    
+    // 2. Fallback to Title + Trip Location context
+    if (e.title && e.title.trim() !== '') {
+        // Simple heuristic: if title looks like a place, use it.
+        return `${e.title}, ${tripLocation}`;
+    }
+    return null;
+  }).filter((loc): loc is string => loc !== null);
 
-  if (validEvents.length === 0) {
+  // Deduplicate consecutive locations to prevent 0-distance legs in directions
+  const uniqueLocations = locations.filter((loc, i, arr) => i === 0 || loc !== arr[i - 1]);
+
+  if (uniqueLocations.length === 0) {
     // Show the general trip location if no specific events
     return `${baseUrl}/place?key=${GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(tripLocation)}`;
   }
 
-  if (validEvents.length === 1) {
+  if (uniqueLocations.length === 1) {
     // Show single place
-    const loc = `${validEvents[0].title}, ${tripLocation}`;
-    return `${baseUrl}/place?key=${GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(loc)}`;
+    return `${baseUrl}/place?key=${GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(uniqueLocations[0])}`;
   }
 
   // Show directions for multiple events
-  const origin = `${validEvents[0].title}, ${tripLocation}`;
-  const destination = `${validEvents[validEvents.length - 1].title}, ${tripLocation}`;
+  // Embed API supports up to 20 waypoints (plus origin and destination)
+  const origin = uniqueLocations[0];
+  const destination = uniqueLocations[uniqueLocations.length - 1];
   
   let url = `${baseUrl}/directions?key=${GOOGLE_MAPS_API_KEY}&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
   
-  // Add waypoints (Embed API limits waypoints, we take up to 10 intermediates)
-  if (validEvents.length > 2) {
-    const waypoints = validEvents.slice(1, -1).slice(0, 10)
-      .map(e => `${e.title}, ${tripLocation}`)
+  if (uniqueLocations.length > 2) {
+    // Take intermediate points
+    // Slice (1, -1) takes everything except first and last
+    // Slice (0, 20) ensures we don't exceed API limits
+    const waypoints = uniqueLocations.slice(1, -1).slice(0, 20)
+      .map(loc => encodeURIComponent(loc))
       .join('|');
-    url += `&waypoints=${encodeURIComponent(waypoints)}`;
+    url += `&waypoints=${waypoints}`;
   }
 
   return url;
@@ -89,33 +139,30 @@ export const getMapUrl = (tripLocation: string, events: ItineraryItem[]): string
  * Generates a Universal Cross-Platform URL to open the route in the native Google Maps App or Website.
  */
 export const getExternalMapsUrl = (location: string, items: ItineraryItem[]): string => {
-  const validItems = items.filter(i => i.title && i.title.trim() !== '');
-  
-  if (validItems.length === 0) {
+  const locations: string[] = items.map(e => {
+    const urlLocation = extractLocationFromUrl(e.url);
+    if (urlLocation) return urlLocation;
+    if (e.title && e.title.trim() !== '') return `${e.title}, ${location}`;
+    return null;
+  }).filter((loc): loc is string => loc !== null);
+
+  if (locations.length === 0) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
   }
 
-  if (validItems.length === 1) {
-     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(validItems[0].title + ', ' + location)}`;
+  if (locations.length === 1) {
+     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locations[0])}`;
   }
 
-  // Define Origin and Destination
-  const origin = encodeURIComponent(`${validItems[0].title}, ${location}`);
-  const destination = encodeURIComponent(`${validItems[validItems.length - 1].title}, ${location}`);
+  const origin = encodeURIComponent(locations[0]);
+  const destination = encodeURIComponent(locations[locations.length - 1]);
 
   let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
 
-  // Add Waypoints (Intermediate stops)
-  if (validItems.length > 2) {
-    const waypoints = validItems
-      .slice(1, -1) // Exclude first and last
-      .map(item => encodeURIComponent(`${item.title}, ${location}`))
-      .join('|'); // Google Maps uses pipe | as separator
+  if (locations.length > 2) {
+    const waypoints = locations.slice(1, -1).map(loc => encodeURIComponent(loc)).join('|');
     url += `&waypoints=${waypoints}`;
   }
-
-  // Add travel mode if specified in the first item (optional enhancement)
-  // url += "&travelmode=transit"; 
 
   return url;
 };
