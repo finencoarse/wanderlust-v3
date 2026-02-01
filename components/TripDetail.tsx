@@ -544,6 +544,11 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     night: currentItinerary.filter(i => (i.period === 'night' || (!i.period && i.time && parseInt(i.time) >= 18)))
   };
 
+  const isGoogleMapLink = (url?: string) => {
+    if (!url) return false;
+    return url.includes('google.com/maps') || url.includes('goo.gl/maps');
+  };
+
   const renderEventCard = (item: ItineraryItem, dateContext: string, isDraggable = false) => (
     <div 
       key={item.id} 
@@ -570,7 +575,14 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
-            <h4 className="font-black text-lg truncate pr-2">{item.title}</h4>
+            <h4 className="font-black text-lg truncate pr-2 flex items-center gap-2">
+              {item.title}
+              {isGoogleMapLink(item.url) && (
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-500 dark:bg-red-900/30" title="Mapped">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                </span>
+              )}
+            </h4>
             <div className="flex gap-2 shrink-0">
                {/* Date Tag */}
                <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 whitespace-nowrap">
