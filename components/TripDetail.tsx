@@ -58,6 +58,11 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   const [smartRoute, setSmartRoute] = useState<{ text: string, links: { uri: string; title: string }[] } | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
 
+  // Map Search State
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
+  const [mapSearchResult, setMapSearchResult] = useState<Partial<ItineraryItem> | null>(null);
+  const [isSearchingMap, setIsSearchingMap] = useState(false);
+
   // Discover Nearby State
   const [selectedDiscoveryId, setSelectedDiscoveryId] = useState<string | null>(null);
   const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
@@ -419,6 +424,38 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     } finally {
       setIsDiscovering(false);
     }
+  };
+
+  // Map Search Handlers
+  const handleMapSearch = async () => {
+    if(!mapSearchQuery) return;
+    setIsSearchingMap(true);
+    setMapSearchResult(null);
+    try {
+        const result = await GeminiService.findPlaceDetails(mapSearchQuery, trip.location, language);
+        if(result) setMapSearchResult(result);
+    } catch(e) { console.error(e); }
+    finally { setIsSearchingMap(false); }
+  };
+
+  const handleAddMapResult = () => {
+    if(!mapSearchResult) return;
+    setEditingEventId(null);
+    setEditingEventDate(selectedDate);
+    setEventForm({
+        ...eventForm,
+        title: mapSearchResult.title || mapSearchQuery,
+        address: mapSearchResult.address || '',
+        description: mapSearchResult.description || '',
+        type: (mapSearchResult.type as any) || 'sightseeing',
+        estimatedExpense: mapSearchResult.estimatedExpense || 0,
+        currency: mapSearchResult.currency || trip.defaultCurrency,
+        date: selectedDate,
+        time: '10:00' // default time
+    });
+    setMapSearchResult(null);
+    setMapSearchQuery('');
+    setShowEventModal(true);
   };
 
   const handleAddDiscovery = (place: any) => {
@@ -818,7 +855,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                 ))}
               </div>
 
-              {/* Map & Weather Section */}
+              {/* Map & Weather Section with Smart Search */}
               <div className={`rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100 shadow-xl'}`}>
                  <div 
                    className="p-6 flex justify-between items-center cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
@@ -844,6 +881,41 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                           </div>
                        </div>
                      )}
+                     
+                     {/* Smart Map Search Bar */}
+                     <div className="px-6 pb-4">
+                        <div className="flex gap-2">
+                           <input 
+                             value={mapSearchQuery}
+                             onChange={(e) => setMapSearchQuery(e.target.value)}
+                             onKeyDown={(e) => e.key === 'Enter' && handleMapSearch()}
+                             placeholder="Type a place name to add (e.g. Starbucks)..."
+                             className={`flex-1 p-3 rounded-xl font-bold text-xs outline-none border-2 transition-all ${darkMode ? 'bg-black border-zinc-800 focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 focus:border-indigo-500'}`}
+                           />
+                           <button 
+                             onClick={handleMapSearch}
+                             disabled={isSearchingMap || !mapSearchQuery}
+                             className="px-4 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50"
+                           >
+                             {isSearchingMap ? '...' : 'Find'}
+                           </button>
+                        </div>
+                        {mapSearchResult && (
+                           <div className={`mt-3 p-3 rounded-xl border-l-4 border-indigo-500 flex justify-between items-center animate-in fade-in ${darkMode ? 'bg-indigo-900/20' : 'bg-indigo-50'}`}>
+                              <div>
+                                 <div className="font-black text-sm">{mapSearchResult.title}</div>
+                                 <div className="text-[10px] opacity-70">{mapSearchResult.address}</div>
+                              </div>
+                              <button 
+                                onClick={handleAddMapResult}
+                                className="px-3 py-1.5 bg-white dark:bg-black text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-black uppercase shadow-sm hover:scale-105 transition-transform"
+                              >
+                                + Add to Day
+                              </button>
+                           </div>
+                        )}
+                     </div>
+
                      <div className="aspect-video w-full bg-gray-100 dark:bg-zinc-800">
                         <iframe
                           width="100%"
