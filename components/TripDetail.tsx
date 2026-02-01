@@ -538,7 +538,25 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     setShowFlightModal(false);
   };
 
-  const sortedDates = Object.keys(trip.itinerary).sort();
+  // Generate full date range for sorting/overview to ensure empty days are shown
+  const sortedDates = useMemo(() => {
+    if (!trip.startDate || !trip.endDate) return Object.keys(trip.itinerary).sort();
+    
+    const dates = [];
+    const start = new Date(trip.startDate);
+    const end = new Date(trip.endDate);
+    
+    // Safety check for invalid dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return Object.keys(trip.itinerary).sort();
+
+    const current = new Date(start);
+    while (current <= end) {
+      dates.push(current.toISOString().split('T')[0]);
+      current.setDate(current.getDate() + 1);
+    }
+    return dates;
+  }, [trip.startDate, trip.endDate, trip.itinerary]);
+
   const currentItinerary = trip.itinerary[selectedDate] || [];
 
   // Determine items for map including hotel as start point if not first day
@@ -943,28 +961,57 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
             <div className="space-y-12 animate-in fade-in">
                 {sortedDates.map((date) => {
                    const items = trip.itinerary[date] || [];
-                   if (items.length === 0) return null;
+                   // REMOVED: if (items.length === 0) return null;
                    
-                   // Sort by time within the day
+                   const isFirstDay = date === trip.startDate;
+                   const activeHotel = trip.hotels && trip.hotels.length > 0 ? trip.hotels[0] : null;
+                   
+                   // Sort user items by time within the day
                    const sortedItems = [...items].sort((a, b) => {
                       const timeA = a.time || '00:00';
                       const timeB = b.time || '00:00';
                       return timeA.localeCompare(timeB);
                    });
 
+                   let displayItems = sortedItems;
+
+                   // Inject Hotel as start point if not first day
+                   if (!isFirstDay && activeHotel) {
+                      const hotelItem: ItineraryItem = {
+                          id: `hotel-start-overview-${date}`,
+                          title: activeHotel.name,
+                          description: 'Starting point',
+                          address: activeHotel.address,
+                          url: activeHotel.website || activeHotel.bookingUrl,
+                          type: 'hotel',
+                          time: '08:00', 
+                          estimatedExpense: 0,
+                          actualExpense: 0,
+                          currency: trip.defaultCurrency
+                      };
+                      displayItems = [hotelItem, ...sortedItems];
+                   }
+
                    return (
                      <div 
                         key={date} 
                         onDragOver={(e) => onDragOver(e, date)}
                         onDrop={(e) => onDrop(e, date)}
-                        className={`relative pl-8 transition-colors rounded-2xl p-4
+                        className={`relative pl-8 transition-colors rounded-2xl p-4 min-h-[160px]
                           ${dragOverDate === date ? 'bg-indigo-50 dark:bg-indigo-900/10 border-2 border-indigo-500 border-dashed' : 'border-l-2 border-dashed border-zinc-200 dark:border-zinc-800'}`}
                      >
                         <div className="absolute -left-2.5 top-4 w-5 h-5 rounded-full bg-indigo-600 border-4 border-white dark:border-zinc-950 shadow-sm" />
                         <h3 className="text-2xl font-black mb-6">{new Date(date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
-                        <div className="space-y-4">
-                           {sortedItems.map(item => renderEventCard(item, date, true))}
-                        </div>
+                        
+                        {displayItems.length > 0 ? (
+                           <div className="space-y-4">
+                              {displayItems.map(item => renderEventCard(item, date, item.type !== 'hotel'))}
+                           </div>
+                        ) : (
+                           <div className="py-8 border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-2xl flex items-center justify-center text-zinc-300 dark:text-zinc-700">
+                              <p className="text-xs font-black uppercase tracking-widest">Drop events here</p>
+                           </div>
+                        )}
                      </div>
                    );
                 })}
@@ -995,7 +1042,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                  </button>
                ) : (
                  <a 
-                   href={getExternalMapsUrl(trip.location, currentItinerary)}
+                   href={getExternalMapsUrl(trip.location, itemsForMap)}
                    target="_blank"
                    rel="noreferrer" 
                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-black text-xs uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
