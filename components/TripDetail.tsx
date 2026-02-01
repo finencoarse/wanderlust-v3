@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Trip, ItineraryItem, Photo, Language, UserProfile, FlightInfo, Hotel } from '../types';
 import { translations } from '../translations';
 import { GeminiService } from '../services/geminiService';
@@ -73,9 +73,10 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
   const [editingHotelId, setEditingHotelId] = useState<string | null>(null);
 
-  // Event Form State - Now includes 'date'
-  const [eventForm, setEventForm] = useState<Partial<ItineraryItem> & { date: string }>({
+  // Event Form State - Now includes 'date' and 'address'
+  const [eventForm, setEventForm] = useState<Partial<ItineraryItem> & { date: string, address: string }>({
     title: '',
+    address: '',
     description: '',
     time: '',
     date: selectedDate, // Default to selected date
@@ -210,6 +211,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     const newItem: ItineraryItem = {
       id: editingEventId || Date.now().toString(),
       title: eventForm.title || 'New Event',
+      address: eventForm.address || '',
       description: eventForm.description || '',
       time: eventForm.time || '', 
       period: finalPeriod as 'morning' | 'afternoon' | 'night',
@@ -252,7 +254,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     setShowEventModal(false);
     setEditingEventId(null);
     setEditingEventDate(null);
-    setEventForm({ title: '', description: '', time: '', date: eventForm.date, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '' });
+    setEventForm({ title: '', address: '', description: '', time: '', date: eventForm.date, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '' });
   };
 
   const handleMoveEvent = (eventId: string, sourceDate: string, targetDate: string) => {
@@ -312,6 +314,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     setEventForm({ 
         ...item, 
         date: date,
+        address: item.address || '',
         period: initialPeriod || 'morning', 
         time: item.time || '',
         url: item.url || '',
@@ -538,6 +541,28 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   const sortedDates = Object.keys(trip.itinerary).sort();
   const currentItinerary = trip.itinerary[selectedDate] || [];
 
+  // Determine items for map including hotel as start point if not first day
+  const itemsForMap = useMemo(() => {
+    const isFirstDay = selectedDate === trip.startDate;
+    const activeHotel = trip.hotels && trip.hotels.length > 0 ? trip.hotels[0] : null;
+    
+    if (!isFirstDay && activeHotel) {
+        const hotelItem: ItineraryItem = {
+            id: 'hotel-start-marker',
+            title: activeHotel.name,
+            description: 'Starting point',
+            address: activeHotel.address,
+            url: activeHotel.website || activeHotel.bookingUrl,
+            type: 'hotel',
+            time: '08:00', // Assumed start time
+            estimatedExpense: 0,
+            actualExpense: 0
+        };
+        return [hotelItem, ...currentItinerary];
+    }
+    return currentItinerary;
+  }, [selectedDate, trip.startDate, trip.hotels, currentItinerary]);
+
   const groupedEvents = {
     morning: currentItinerary.filter(i => (i.period === 'morning' || (!i.period && (!i.time || parseInt(i.time) < 12)))),
     afternoon: currentItinerary.filter(i => (i.period === 'afternoon' || (!i.period && i.time && parseInt(i.time) >= 12 && parseInt(i.time) < 18))),
@@ -558,26 +583,29 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       className={`group relative p-5 rounded-[2rem] border transition-all cursor-pointer 
         ${isDraggable ? 'cursor-grab active:cursor-grabbing hover:shadow-xl active:scale-[0.98]' : 'hover:scale-[1.01] hover:shadow-lg'}
         ${selectedDiscoveryId === item.id ? 'ring-2 ring-indigo-500 scale-[1.02] shadow-xl z-10' : ''} 
-        ${darkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-100'}`}
+        ${darkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-100'}
+        ${item.type === 'hotel' ? 'border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-900/30' : ''}`}
     >
       <div className="flex items-start gap-4">
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner shrink-0 ${
           item.type === 'eating' ? 'bg-orange-100 text-orange-500' :
           item.type === 'sightseeing' ? 'bg-blue-100 text-blue-500' :
           item.type === 'shopping' ? 'bg-pink-100 text-pink-500' :
-          item.type === 'transport' ? 'bg-zinc-100 text-zinc-500' : 'bg-purple-100 text-purple-500'
+          item.type === 'transport' ? 'bg-zinc-100 text-zinc-500' : 
+          item.type === 'hotel' ? 'bg-amber-100 text-amber-600' : 'bg-purple-100 text-purple-500'
         }`}>
           {item.type === 'eating' && '🍱'}
           {item.type === 'sightseeing' && '🏛️'}
           {item.type === 'shopping' && '🛍️'}
           {item.type === 'transport' && '🚗'}
+          {item.type === 'hotel' && '🏨'}
           {item.type === 'other' && '✨'}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
             <h4 className="font-black text-lg truncate pr-2 flex items-center gap-2">
               {item.title}
-              {isGoogleMapLink(item.url) && (
+              {(isGoogleMapLink(item.url) || item.address) && (
                 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-500 dark:bg-red-900/30" title="Mapped">
                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
                 </span>
@@ -594,6 +622,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                </span>
             </div>
           </div>
+          {item.address && <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>{item.address}</p>}
           {item.description && <p className="text-sm opacity-70 mt-1 line-clamp-2">{item.description}</p>}
           <div className="flex gap-3 mt-3">
              {item.estimatedExpense > 0 && (
@@ -630,14 +659,16 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
         </div>
       </div>
       
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded-xl p-1">
-        <button onClick={(e) => { e.stopPropagation(); handleEditEvent(item, dateContext); }} className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 rounded-lg">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(item.id, dateContext); }} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/50 rounded-lg">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-        </button>
-      </div>
+      {item.type !== 'hotel' && (
+        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded-xl p-1">
+          <button onClick={(e) => { e.stopPropagation(); handleEditEvent(item, dateContext); }} className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/50 rounded-lg">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(item.id, dateContext); }} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/50 rounded-lg">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -802,7 +833,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                           style={{ border: 0 }}
                           loading="lazy"
                           allowFullScreen
-                          src={getMapUrl(trip.location, currentItinerary)}
+                          src={getMapUrl(trip.location, itemsForMap)}
                         ></iframe>
                      </div>
                      <div className="p-6 space-y-4">
@@ -849,7 +880,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                     onClick={() => {
                       setEditingEventId(null);
                       setEditingEventDate(selectedDate);
-                      setEventForm({ title: '', description: '', time: '', date: selectedDate, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '' });
+                      setEventForm({ title: '', address: '', description: '', time: '', date: selectedDate, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '' });
                       setShowEventModal(true);
                     }}
                     className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
@@ -858,12 +889,23 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                   </button>
                 </div>
 
-                {currentItinerary.length === 0 ? (
+                {itemsForMap.length === 0 ? (
                   <div className={`p-12 text-center rounded-[2.5rem] border-2 border-dashed ${darkMode ? 'border-zinc-800 text-zinc-600' : 'border-zinc-200 text-zinc-400'}`}>
                     <p className="font-bold">No events planned for this day.</p>
                   </div>
                 ) : (
                   <div className="space-y-8">
+                    {/* Render Hotel as Start Point if available */}
+                    {itemsForMap[0].type === 'hotel' && (
+                       <div className="space-y-4 animate-in slide-in-from-left-4 duration-500">
+                          <div className="flex items-center gap-2 px-2">
+                             <span className="text-xl">🛌</span>
+                             <h4 className="font-black uppercase tracking-widest text-sm opacity-60">Start</h4>
+                          </div>
+                          {renderEventCard(itemsForMap[0], selectedDate)}
+                       </div>
+                    )}
+
                     {groupedEvents.morning.length > 0 && (
                       <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-100">
                         <div className="flex items-center gap-2 px-2">
@@ -931,7 +973,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                     onClick={() => {
                       setEditingEventId(null);
                       setEditingEventDate(sortedDates[0] || trip.startDate);
-                      setEventForm({ title: '', description: '', time: '', date: sortedDates[0] || trip.startDate, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '' });
+                      setEventForm({ title: '', address: '', description: '', time: '', date: sortedDates[0] || trip.startDate, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '' });
                       setShowEventModal(true);
                     }}
                     className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all active:scale-95"
@@ -978,6 +1020,12 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                     <div className="flex justify-between items-start mb-4">
                       <div>
                          <h4 className="font-black text-xl leading-tight mb-1">{hotel.name}</h4>
+                         {hotel.address && (
+                           <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                             {hotel.address}
+                           </div>
+                         )}
                          <div className="flex items-center gap-2 text-xs font-bold opacity-60">
                            {hotel.rating > 0 && <span className="text-yellow-500">★ {hotel.rating}</span>}
                            {hotel.price && <span>• {hotel.price}</span>}
@@ -994,6 +1042,14 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                        {hotel.checkOut && <div className="flex justify-between border-b border-dashed pb-1 border-opacity-20 border-gray-500"><span>Check-out:</span> <span className="font-bold">{hotel.checkOut}</span></div>}
                        {hotel.roomType && <div className="flex justify-between border-b border-dashed pb-1 border-opacity-20 border-gray-500"><span>Room:</span> <span className="font-bold">{hotel.roomType}</span></div>}
                     </div>
+
+                    {(hotel.website || hotel.bookingUrl) && (
+                      <div className="mt-4">
+                        <a href={hotel.website || hotel.bookingUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:underline">
+                          🔗 Visit Website
+                        </a>
+                      </div>
+                    )}
 
                     {hotel.servicesIncluded && (
                       <div className="mt-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs">
@@ -1396,6 +1452,26 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                    <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.hotelName}</label>
                    <input value={hotelForm.name || ''} onChange={e => setHotelForm({...hotelForm, name: e.target.value})} className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} />
                 </div>
+
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Address / Location</label>
+                   <input 
+                     value={hotelForm.address || ''} 
+                     onChange={e => setHotelForm({...hotelForm, address: e.target.value})} 
+                     className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                     placeholder="Street Address or Map Location"
+                   />
+                </div>
+
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Website / Map Link</label>
+                   <input 
+                     value={hotelForm.website || ''} 
+                     onChange={e => setHotelForm({...hotelForm, website: e.target.value})} 
+                     className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                     placeholder="https://..."
+                   />
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                    <div className="space-y-1">
@@ -1506,6 +1582,17 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                    <input 
                      value={eventForm.title} 
                      onChange={e => setEventForm({...eventForm, title: e.target.value})} 
+                     className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                   />
+                </div>
+
+                {/* New Address Field */}
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Address / Location Name</label>
+                   <input 
+                     value={eventForm.address} 
+                     onChange={e => setEventForm({...eventForm, address: e.target.value})} 
+                     placeholder="Specific place name or address for map"
                      className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
                    />
                 </div>
