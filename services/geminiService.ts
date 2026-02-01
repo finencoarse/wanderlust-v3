@@ -411,6 +411,32 @@ export class GeminiService {
     }
   }
 
+  /**
+   * New method: Search for a specific place to add to itinerary
+   */
+  static async findPlaceDetails(query: string, locationContext: string, language: string = 'en'): Promise<Partial<ItineraryItem> | null> {
+    try {
+      const prompt = `
+      Search for a place matching "${query}" in or near "${locationContext}".
+      Return a valid JSON object with:
+      - title: Official name
+      - address: Full address
+      - description: Brief summary (max 1 sentence)
+      - type: One of 'sightseeing', 'eating', 'shopping', 'transport', 'hotel', 'other'
+      - estimatedExpense: Estimated cost per person (number only, estimate if unknown)
+      - currency: Local currency code (e.g. JPY, USD)
+      
+      Respond in ${language}.
+      `;
+
+      const { text } = await this.generate('gemini-2.5-flash', prompt, { tools: [{ googleSearch: {} }] });
+      return this.extractJson(text);
+    } catch (e) {
+      console.error("Place search failed:", e);
+      return null;
+    }
+  }
+
   static async recommendHotels(location: string, itinerary: ItineraryItem[], preferences: string, language: string): Promise<Hotel[]> {
     try {
       const placeList = itinerary.map(item => item.title).slice(0, 15).join(", ");
