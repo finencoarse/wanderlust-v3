@@ -4,23 +4,32 @@ import { ItineraryItem } from '../types';
 export class NominatimService {
   static async searchPlace(query: string, locationContext: string): Promise<Partial<ItineraryItem> | null> {
     try {
-      // Combine query and location for better results context
-      const q = `${query}, ${locationContext}`;
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&addressdetails=1&limit=1`;
-      
-      const response = await fetch(url, {
-        headers: {
-          'Accept-Language': 'en-US,en;q=0.9' // Prefer English for consistency
+      const fetchWithQuery = async (q: string) => {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&addressdetails=1&limit=1`;
+        try {
+            const response = await fetch(url, {
+                headers: {
+                'Accept-Language': 'en-US,en;q=0.9' // Prefer English for consistency
+                }
+            });
+            if (!response.ok) return null;
+            const data = await response.json();
+            return data && data.length > 0 ? data[0] : null;
+        } catch (e) {
+            return null;
         }
-      });
-      
-      if (!response.ok) return null;
-      
-      const data = await response.json();
+      };
 
-      if (!data || data.length === 0) return null;
+      // 1. Try with context (e.g. "Gwangjang Market, Seoul")
+      let result = await fetchWithQuery(`${query}, ${locationContext}`);
 
-      const result = data[0];
+      // 2. Fallback: If failed, and context context contains commas (e.g. "Osaka, Seoul, Busan"),
+      // try just the query (e.g. "Gwangjang Market") as it might be specific enough globally.
+      if (!result && locationContext.includes(',')) {
+         result = await fetchWithQuery(query);
+      }
+
+      if (!result) return null;
       
       // Map OSM category/type to app types
       // Nominatim returns 'class' (broad) and 'type' (specific)
@@ -47,6 +56,9 @@ export class NominatimService {
         description: `Found via OpenStreetMap (${c}/${t})`,
         estimatedExpense: 0,
         currency: 'USD',
+        // Parse coordinates as numbers
+        lat: parseFloat(result.lat),
+        lng: parseFloat(result.lon)
       };
     } catch (error) {
       console.error("Nominatim Search Error:", error);
