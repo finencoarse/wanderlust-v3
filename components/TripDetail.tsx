@@ -348,6 +348,8 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   };
 
   const handleOptimizeRoute = async () => {
+    if (isOptimizing) return;
+    
     const currentItems = trip.itinerary[selectedDate] || [];
     if (currentItems.length < 2) return;
 
