@@ -1068,24 +1068,6 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                   </button>
                 </div>
 
-                {/* Groq Route Summary */}
-                {routeSummary && (
-                  <div className="mx-2 p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 animate-in fade-in slide-in-from-top-4">
-                    <div className="flex justify-between items-start gap-4">
-                      <div>
-                        <h4 className="font-black text-[10px] uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-1 flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                          Route Intro
-                        </h4>
-                        <p className="text-sm font-medium leading-relaxed opacity-80">{routeSummary}</p>
-                      </div>
-                      <button onClick={() => setRouteSummary(null)} className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
-                        <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {itemsForMap.length === 0 ? (
                   <div className={`p-12 text-center rounded-[2.5rem] border-2 border-dashed ${darkMode ? 'border-zinc-800 text-zinc-600' : 'border-zinc-200 text-zinc-400'}`}>
                     <p className="font-bold">No events planned for this day.</p>
@@ -1130,6 +1112,24 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                         {groupedEvents.night.map(item => renderEventCard(item, selectedDate))}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Groq Route Summary - Moved to Bottom */}
+                {routeSummary && (
+                  <div className="mx-2 mt-6 p-6 rounded-2xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 animate-in fade-in slide-in-from-top-4">
+                    <div className="flex justify-between items-start gap-4">
+                      <div>
+                        <h4 className="font-black text-xs uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-2 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                          Optimized Route Guide
+                        </h4>
+                        <div className="text-sm font-medium leading-relaxed opacity-90 whitespace-pre-wrap">{routeSummary}</div>
+                      </div>
+                      <button onClick={() => setRouteSummary(null)} className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors shrink-0">
+                        <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
