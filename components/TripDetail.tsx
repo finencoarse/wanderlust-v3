@@ -945,13 +945,13 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                  onClick={() => setItineraryView('day')}
                  className={`px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${itineraryView === 'day' ? 'bg-white dark:bg-zinc-700 shadow-md text-indigo-600 dark:text-white' : 'text-zinc-400 hover:text-zinc-600'}`}
                >
-                 Day View
+                 {t.dayView}
                </button>
                <button 
                  onClick={() => setItineraryView('overview')}
                  className={`px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${itineraryView === 'overview' ? 'bg-white dark:bg-zinc-700 shadow-md text-indigo-600 dark:text-white' : 'text-zinc-400 hover:text-zinc-600'}`}
                >
-                 Overview
+                 {t.overview}
                </button>
              </div>
           </div>
@@ -986,7 +986,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl">
                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
                        </div>
-                       <h3 className="font-black text-lg">Map & Weather</h3>
+                       <h3 className="font-black text-lg">{t.mapAndWeather}</h3>
                     </div>
                     <svg className={`w-5 h-5 transition-transform duration-300 ${showMap ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
                  </div>
@@ -1010,7 +1010,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                              value={mapSearchQuery}
                              onChange={(e) => setMapSearchQuery(e.target.value)}
                              onKeyDown={(e) => e.key === 'Enter' && handleMapSearch()}
-                             placeholder="Search place to add (via OpenStreetMap)..."
+                             placeholder={t.searchPlacePlaceholder}
                              className={`flex-1 p-3 rounded-xl font-bold text-xs outline-none border-2 transition-all ${darkMode ? 'bg-black border-zinc-800 focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 focus:border-indigo-500'}`}
                            />
                            <button 
@@ -1018,7 +1018,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                              disabled={isSearchingMap || !mapSearchQuery}
                              className="px-4 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50"
                            >
-                             {isSearchingMap ? '...' : 'Find'}
+                             {isSearchingMap ? '...' : t.find}
                            </button>
                         </div>
                         {mapSearchResult && (
@@ -1031,7 +1031,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                                 onClick={handleAddMapResult}
                                 className="px-3 py-1.5 bg-white dark:bg-black text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-black uppercase shadow-sm hover:scale-105 transition-transform"
                               >
-                                + Add to Day
+                                {t.addToDay}
                               </button>
                            </div>
                         )}
@@ -1079,7 +1079,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                        <div className="space-y-4 animate-in slide-in-from-left-4 duration-500">
                           <div className="flex items-center gap-2 px-2">
                              <span className="text-xl">🛌</span>
-                             <h4 className="font-black uppercase tracking-widest text-sm opacity-60">Start</h4>
+                             <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.startPoint}</h4>
                           </div>
                           {renderEventCard(itemsForMap[0], selectedDate)}
                        </div>
@@ -1122,7 +1122,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                       <div>
                         <h4 className="font-black text-xs uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-2 flex items-center gap-2">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                          Optimized Route Guide
+                          {t.optimizedRouteGuide}
                         </h4>
                         <div className="text-sm font-medium leading-relaxed opacity-90 whitespace-pre-wrap">{routeSummary}</div>
                       </div>
@@ -1187,7 +1187,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                            </div>
                         ) : (
                            <div className="py-8 border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-2xl flex items-center justify-center text-zinc-300 dark:text-zinc-700">
-                              <p className="text-xs font-black uppercase tracking-widest">Drop events here</p>
+                              <p className="text-xs font-black uppercase tracking-widest">{t.dropEventsHere}</p>
                            </div>
                         )}
                      </div>
@@ -1221,7 +1221,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                  ) : (
                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                  )}
-                 {isOptimizing ? (optimizationStatus || 'Optimizing...') : 'Optimize Order'}
+                 {isOptimizing ? (optimizationStatus || 'Optimizing...') : t.optimizeOrder}
                </button>
 
                {selectedDiscoveryId ? (
@@ -1276,22 +1276,22 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                     </div>
 
                     <div className="space-y-3 text-sm">
-                       {hotel.checkIn && <div className="flex justify-between border-b border-dashed pb-1 border-opacity-20 border-gray-500"><span>Check-in:</span> <span className="font-bold">{hotel.checkIn}</span></div>}
-                       {hotel.checkOut && <div className="flex justify-between border-b border-dashed pb-1 border-opacity-20 border-gray-500"><span>Check-out:</span> <span className="font-bold">{hotel.checkOut}</span></div>}
-                       {hotel.roomType && <div className="flex justify-between border-b border-dashed pb-1 border-opacity-20 border-gray-500"><span>Room:</span> <span className="font-bold">{hotel.roomType}</span></div>}
+                       {hotel.checkIn && <div className="flex justify-between border-b border-dashed pb-1 border-opacity-20 border-gray-500"><span>{t.checkInTime}:</span> <span className="font-bold">{hotel.checkIn}</span></div>}
+                       {hotel.checkOut && <div className="flex justify-between border-b border-dashed pb-1 border-opacity-20 border-gray-500"><span>{t.checkOutTime}:</span> <span className="font-bold">{hotel.checkOut}</span></div>}
+                       {hotel.roomType && <div className="flex justify-between border-b border-dashed pb-1 border-opacity-20 border-gray-500"><span>{t.roomType}:</span> <span className="font-bold">{hotel.roomType}</span></div>}
                     </div>
 
                     {(hotel.website || hotel.bookingUrl) && (
                       <div className="mt-4">
                         <a href={hotel.website || hotel.bookingUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:underline">
-                          🔗 Visit Website
+                          🔗 {t.visitWebsite}
                         </a>
                       </div>
                     )}
 
                     {hotel.servicesIncluded && (
                       <div className="mt-4 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs">
-                        <span className="font-bold block mb-1">Included:</span>
+                        <span className="font-bold block mb-1">{t.servicesIncluded}:</span>
                         {hotel.servicesIncluded}
                       </div>
                     )}
@@ -1376,7 +1376,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                 }}
                 className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
               >
-                + Add Flight
+                + {t.addFlight}
               </button>
            </div>
 
@@ -1567,7 +1567,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
 
            {/* Planning Resources Section */}
            <div className={`p-6 rounded-[2.5rem] border ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100'}`}>
-              <h3 className="text-2xl font-black mb-6">Planning Resources</h3>
+              <h3 className="text-2xl font-black mb-6">{t.planningResources}</h3>
               
               {trip.resources && trip.resources.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1598,7 +1598,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                 </div>
               ) : (
                 <div className="text-center py-12 border-2 border-dashed rounded-2xl opacity-40">
-                  <p className="font-bold text-sm">No resources added during planning.</p>
+                  <p className="font-bold text-sm">{t.noResourcesPlanning}</p>
                 </div>
               )}
            </div>
@@ -1639,9 +1639,9 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                     className={`flex items-center justify-between p-4 rounded-2xl border transition-all hover:scale-[1.02] active:scale-98 ${darkMode ? 'bg-black border-zinc-800 hover:border-zinc-600' : 'bg-white border-zinc-200 hover:shadow-lg'}`}
                   >
                     <span className="font-black text-sm uppercase tracking-widest flex items-center gap-3">
-                      {cat === 'eating' && '🍱 Find Food'}
-                      {cat === 'sightseeing' && '🏛️ Find Sights'}
-                      {cat === 'shopping' && '🛍️ Find Shops'}
+                      {cat === 'eating' && `${t.findFood}`}
+                      {cat === 'sightseeing' && `${t.findSights}`}
+                      {cat === 'shopping' && `${t.findShops}`}
                       {cat === 'cafes' && '☕ Find Cafes'}
                       {cat === 'bars' && '🍸 Find Bars'}
                     </span>
@@ -1652,7 +1652,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
              </div>
              
              <div className="mt-6 text-center">
-               <button onClick={() => setShowDiscoveryModal(false)} className="text-xs font-bold opacity-50 hover:opacity-100">Close</button>
+               <button onClick={() => setShowDiscoveryModal(false)} className="text-xs font-bold opacity-50 hover:opacity-100">{t.cancel}</button>
              </div>
           </div>
         </div>
@@ -1663,7 +1663,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowHotelModal(false)} />
           <div className={`relative w-full max-w-lg p-6 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
-             <h3 className="text-2xl font-black mb-6">{editingHotelId ? 'Edit Hotel' : t.addHotel}</h3>
+             <h3 className="text-2xl font-black mb-6">{editingHotelId ? t.editHotel : t.addHotel}</h3>
              
              {/* Auto-Fill Section */}
              <div className={`p-4 rounded-2xl border-2 mb-6 space-y-3 ${darkMode ? 'bg-black border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
@@ -1683,7 +1683,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                      {isAnalyzingUrl ? '...' : t.autoFill}
                    </button>
                 </div>
-                <p className="text-[10px] opacity-50">Paste a hotel website or booking link to auto-fill details.</p>
+                <p className="text-[10px] opacity-50">{t.hotelUrlHelp}</p>
              </div>
 
              <div className="space-y-4">
@@ -1693,17 +1693,17 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Address / Location</label>
+                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.addressLocation}</label>
                    <input 
                      value={hotelForm.address || ''} 
                      onChange={e => setHotelForm({...hotelForm, address: e.target.value})} 
                      className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
-                     placeholder="Street Address or Map Location"
+                     placeholder={t.addressPlaceholder}
                    />
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Website / Map Link</label>
+                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.website}</label>
                    <input 
                      value={hotelForm.website || ''} 
                      onChange={e => setHotelForm({...hotelForm, website: e.target.value})} 
@@ -1764,7 +1764,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFlightModal(false)} />
           <div className={`relative w-full max-w-sm p-6 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
              <h3 className="text-2xl font-black mb-6">
-                {editingFlightType === 'departure' ? 'Departure Flight' : editingFlightType === 'return' ? 'Return Flight' : (editingComplexIndex === -1 ? 'Add Flight' : 'Edit Flight')}
+                {editingFlightType === 'departure' ? t.flightDeparture : editingFlightType === 'return' ? t.flightReturn : (editingComplexIndex === -1 ? t.addFlight : t.editFlight)}
              </h3>
              <div className="space-y-4">
                 {editingFlightType === 'complex' && (
@@ -1812,130 +1812,162 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       {showEventModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEventModal(false)} />
-          <div className={`relative w-full max-w-lg p-6 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
-             <h3 className="text-2xl font-black mb-6">{editingEventId ? t.updateEvent : t.addEvent}</h3>
+          <div className={`relative w-full max-w-2xl p-6 md:p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto custom-scrollbar ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+             <div className="flex justify-between items-center mb-8">
+                <h3 className="text-3xl font-black">{editingEventId ? t.updateEvent : t.addEvent}</h3>
+                <button onClick={() => setShowEventModal(false)} className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                   <svg className="w-6 h-6 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+             </div>
              
-             <div className="space-y-4">
-                <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.eventName}</label>
-                   <input 
-                     value={eventForm.title} 
-                     onChange={e => setEventForm({...eventForm, title: e.target.value})} 
-                     className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
-                   />
-                </div>
+             <div className="space-y-6">
+                {/* Main Info Group */}
+                <div className="space-y-4">
+                    <div className="space-y-1.5">
+                       <label className="text-[10px] font-black uppercase tracking-widest opacity-50 pl-1">{t.eventName}</label>
+                       <input 
+                         autoFocus
+                         value={eventForm.title} 
+                         onChange={e => setEventForm({...eventForm, title: e.target.value})} 
+                         className={`w-full p-4 rounded-2xl font-black text-lg outline-none border-2 transition-all ${darkMode ? 'bg-zinc-950 border-zinc-800 focus:border-white' : 'bg-zinc-50 border-zinc-200 focus:border-black'}`} 
+                         placeholder="e.g. Visit Senso-ji Temple"
+                       />
+                    </div>
 
-                {/* New Address Field */}
-                <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Address / Location Name</label>
-                   <input 
-                     value={eventForm.address} 
-                     onChange={e => setEventForm({...eventForm, address: e.target.value})} 
-                     placeholder="Specific place name or address for map"
-                     className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
-                   />
+                    <div className="space-y-1.5">
+                       <label className="text-[10px] font-black uppercase tracking-widest opacity-50 pl-1">{t.addressLocation}</label>
+                       <div className="relative">
+                           <input 
+                             value={eventForm.address} 
+                             onChange={e => setEventForm({...eventForm, address: e.target.value})} 
+                             placeholder={t.addressPlaceholder}
+                             className={`w-full p-4 pl-11 rounded-2xl font-bold text-sm outline-none border-2 transition-all ${darkMode ? 'bg-zinc-950 border-zinc-800 focus:border-white' : 'bg-zinc-50 border-zinc-200 focus:border-black'}`} 
+                           />
+                           <svg className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                       </div>
+                    </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3">
-                   <div className="space-y-1">
-                     <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Date</label>
+                {/* Timing Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                   <div className="col-span-2 md:col-span-1 space-y-1.5">
+                     <label className="text-[10px] font-black uppercase tracking-widest opacity-50 pl-1">Date</label>
                      <input 
                        type="date" 
                        value={eventForm.date} 
                        onChange={e => setEventForm({...eventForm, date: e.target.value})} 
-                       className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                       className={`w-full p-3 rounded-2xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
                      />
                    </div>
-                   <div className="space-y-1">
-                     <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.time}</label>
+                   <div className="space-y-1.5">
+                     <label className="text-[10px] font-black uppercase tracking-widest opacity-50 pl-1">{t.time}</label>
                      <input 
                        type="time" 
                        value={eventForm.time || ''} 
                        onChange={e => setEventForm({...eventForm, time: e.target.value})} 
-                       className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                       className={`w-full p-3 rounded-2xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
                      />
                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                   <div className="space-y-1">
-                     <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.period}</label>
+                   <div className="space-y-1.5">
+                     <label className="text-[10px] font-black uppercase tracking-widest opacity-50 pl-1">{t.period}</label>
                      <select 
                        value={eventForm.period || 'morning'} 
                        onChange={e => setEventForm({...eventForm, period: e.target.value as any})} 
-                       className={`w-full p-3 rounded-xl font-bold outline-none border-2 appearance-none ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}
+                       className={`w-full p-3 rounded-2xl font-bold outline-none border-2 appearance-none bg-transparent ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}
                      >
                         <option value="morning">{t.morning}</option>
                         <option value="afternoon">{t.afternoon}</option>
                         <option value="night">{t.night}</option>
                      </select>
                    </div>
-                   <div className="space-y-1">
-                     <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.category}</label>
-                     <select 
-                       value={eventForm.type} 
-                       onChange={e => setEventForm({...eventForm, type: e.target.value as any})} 
-                       className={`w-full p-3 rounded-xl font-bold outline-none border-2 appearance-none ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}
-                     >
-                        <option value="sightseeing">Sightseeing</option>
-                        <option value="eating">Eating</option>
-                        <option value="shopping">Shopping</option>
-                        <option value="transport">Transport</option>
-                        <option value="other">Other</option>
-                     </select>
+                </div>
+
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-1.5">
+                     <label className="text-[10px] font-black uppercase tracking-widest opacity-50 pl-1">{t.category}</label>
+                     <div className="relative">
+                        <select 
+                          value={eventForm.type} 
+                          onChange={e => setEventForm({...eventForm, type: e.target.value as any})} 
+                          className={`w-full p-3 pl-10 rounded-2xl font-bold outline-none border-2 appearance-none ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}
+                        >
+                            <option value="sightseeing">Sightseeing</option>
+                            <option value="eating">Eating</option>
+                            <option value="shopping">Shopping</option>
+                            <option value="transport">Transport</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-lg">
+                            {eventForm.type === 'eating' && '🍱'}
+                            {eventForm.type === 'sightseeing' && '🏛️'}
+                            {eventForm.type === 'shopping' && '🛍️'}
+                            {eventForm.type === 'transport' && '🚗'}
+                            {eventForm.type === 'other' && '✨'}
+                        </div>
+                     </div>
+                   </div>
+                   <div className="space-y-1.5">
+                     <label className="text-[10px] font-black uppercase tracking-widest opacity-50 pl-1">{t.estimated}</label>
+                     <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black opacity-50">{trip.defaultCurrency}</span>
+                        <input 
+                          type="number" 
+                          value={eventForm.estimatedExpense} 
+                          onChange={e => setEventForm({...eventForm, estimatedExpense: parseFloat(e.target.value) || 0})} 
+                          className={`w-full p-3 pl-12 rounded-2xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                        />
+                     </div>
                    </div>
                 </div>
 
-                <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Notes / Description</label>
+                <div className="space-y-1.5">
+                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50 pl-1">{t.notes}</label>
                    <textarea 
                      value={eventForm.description} 
                      onChange={e => setEventForm({...eventForm, description: e.target.value})} 
-                     className={`w-full p-3 rounded-xl font-bold outline-none border-2 h-24 resize-none ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                     className={`w-full p-4 rounded-2xl font-medium outline-none border-2 min-h-[100px] resize-none ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                     placeholder="Add details, reservation numbers, or tips..."
                    />
                 </div>
 
                 {/* Refined Resources Section */}
-                <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Resources</label>
+                <div className="space-y-1.5">
+                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50 pl-1">{t.linkMedia}</label>
                    <div className="flex gap-2">
                       <input 
                         value={eventForm.url || ''}
                         onChange={e => setEventForm({...eventForm, url: e.target.value})}
                         placeholder="http://..."
-                        className={`flex-1 p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
+                        className={`flex-1 p-3 rounded-2xl font-bold text-sm outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
                       />
-                      <label className={`p-3 rounded-xl border-2 cursor-pointer flex items-center justify-center transition-colors ${darkMode ? 'bg-zinc-950 border-zinc-800 hover:bg-zinc-900' : 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100'}`}>
+                      <label className={`w-12 flex-shrink-0 flex items-center justify-center rounded-2xl border-2 cursor-pointer transition-colors ${darkMode ? 'bg-zinc-950 border-zinc-800 hover:bg-zinc-900' : 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100'}`}>
                         <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h14a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         <input type="file" accept="image/*" className="hidden" onChange={handleEventImageUpload} />
                       </label>
                    </div>
                    {eventForm.screenshot && (
-                      <div className="relative mt-2 w-full h-32 rounded-xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-800 group">
+                      <div className="relative mt-3 w-full h-40 rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-800 group shadow-sm">
                          <img src={eventForm.screenshot} className="w-full h-full object-cover" />
-                         <button 
-                           onClick={() => setEventForm({...eventForm, screenshot: ''})} 
-                           className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                         >
-                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                         </button>
+                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                             <button 
+                               onClick={() => setEventForm({...eventForm, screenshot: ''})} 
+                               className="px-4 py-2 bg-white text-black rounded-full font-bold text-xs shadow-lg hover:scale-105 transition-transform"
+                             >
+                               {t.removeImage}
+                             </button>
+                         </div>
                       </div>
                    )}
                 </div>
 
-                <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase tracking-widest opacity-50">{t.estimated} ({trip.defaultCurrency})</label>
-                   <input 
-                     type="number" 
-                     value={eventForm.estimatedExpense} 
-                     onChange={e => setEventForm({...eventForm, estimatedExpense: parseFloat(e.target.value) || 0})} 
-                     className={`w-full p-3 rounded-xl font-bold outline-none border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`} 
-                   />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button onClick={() => setShowEventModal(false)} className="flex-1 py-3 bg-zinc-100 dark:bg-zinc-800 rounded-xl font-black uppercase text-xs">{t.cancel}</button>
-                  <button onClick={handleSaveEvent} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-xs shadow-lg">{t.save}</button>
+                <div className="flex gap-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                  <button onClick={() => setShowEventModal(false)} className={`flex-1 py-4 rounded-2xl font-black uppercase text-xs tracking-widest transition-colors ${darkMode ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}>
+                    {t.cancel}
+                  </button>
+                  <button onClick={handleSaveEvent} className="flex-[2] py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    {t.save}
+                  </button>
                 </div>
              </div>
           </div>
