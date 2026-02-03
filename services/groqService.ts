@@ -30,13 +30,15 @@ export class GroqService {
     const targetLang = langMap[language] || 'English';
 
     const prompt = `
-      You are an enthusiastic travel guide.
-      The user has just optimized their route for the day.
-      Here is the new logical order of visits: ${locations.join(' -> ')}.
+      You are an expert travel logistics assistant.
+      The user has just optimized their itinerary to be geographically efficient.
+      The new route order is: ${locations.join(' -> ')}.
       
-      Please write a short, exciting, and practical introduction (max 2-3 sentences) describing this flow.
-      Focus on efficiency and the vibe of the journey.
-      Output ONLY the text in ${targetLang}.
+      Please write a helpful summary (max 3-4 sentences) that:
+      1. Explains why this order is efficient (e.g. "We grouped the northern temples together...").
+      2. Provides brief transport advice or travel tips between the main stops (e.g. "Walk 10 mins", "Take a short taxi ride").
+      
+      Keep the tone exciting but practical. Output ONLY the text in ${targetLang}.
     `;
 
     try {
@@ -48,9 +50,9 @@ export class GroqService {
         },
         body: JSON.stringify({
           messages: [{ role: 'user', content: prompt }],
-          model: 'llama-3.1-8b-instant', // Updated from decommissioned llama3-8b-8192
+          model: 'llama-3.1-8b-instant',
           temperature: 0.7,
-          max_tokens: 150
+          max_tokens: 200
         })
       });
 
