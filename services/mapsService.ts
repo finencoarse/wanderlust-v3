@@ -50,7 +50,7 @@ export const getMapUsage = (): number => {
 /**
  * Extracts a location query from a Google Maps URL.
  */
-const extractLocationFromUrl = (url?: string): string | null => {
+export const extractLocationFromUrl = (url?: string): string | null => {
   if (!url) return null;
   try {
     const urlObj = new URL(url);
@@ -176,3 +176,4 @@ export const getExternalMapsUrl = (location: string, items: ItineraryItem[]): st
 
   return url;
 };
+
