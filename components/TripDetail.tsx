@@ -449,6 +449,13 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     // For simplicity, preserve the first mappable item as the start node to anchor the route
     const startNode = mappableItems[0];
     
+    // Check if startNode is undefined to satisfy strict TS
+    if (!startNode) {
+       setIsOptimizing(false);
+       setOptimizationStatus('');
+       return;
+    }
+    
     let optimized = [startNode];
     let remaining = mappableItems.filter(i => i.id !== startNode.id);
 
@@ -458,10 +465,13 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       let minDist = Infinity;
 
       remaining.forEach((item, index) => {
-        const dist = calculateDistance(current.lat!, current.lng!, item.lat!, item.lng!);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestIndex = index;
+        // Safe access due to mappableItems filter, but good to be explicit
+        if (current.lat !== undefined && current.lng !== undefined && item.lat !== undefined && item.lng !== undefined) {
+            const dist = calculateDistance(current.lat, current.lng, item.lat, item.lng);
+            if (dist < minDist) {
+              minDist = dist;
+              nearestIndex = index;
+            }
         }
       });
 
