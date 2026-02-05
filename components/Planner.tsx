@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Trip, UserProfile, Language, CustomEvent, PlanningResource } from '../types';
 import { translations } from '../translations';
@@ -328,13 +327,13 @@ const Planner: React.FC<PlannerProps> = ({
                   onClick={() => setCreateTab('details')} 
                   className={`flex-1 py-3 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${createTab === 'details' ? 'bg-white dark:bg-zinc-700 shadow text-black dark:text-white' : 'text-zinc-400'}`}
                 >
-                  Trip Details
+                  {t.tripDetails || "Trip Details"}
                 </button>
                 <button 
                   onClick={() => setCreateTab('resources')} 
                   className={`flex-1 py-3 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${createTab === 'resources' ? 'bg-white dark:bg-zinc-700 shadow text-black dark:text-white' : 'text-zinc-400'}`}
                 >
-                  Resources {newResources.length > 0 && `(${newResources.length})`}
+                  {t.resourcesTab || "Resources"} {newResources.length > 0 && `(${newResources.length})`}
                 </button>
              </div>
              
@@ -401,146 +400,110 @@ const Planner: React.FC<PlannerProps> = ({
                           type="number" 
                           placeholder="0" 
                           value={formState.budget === 0 ? '' : formState.budget} 
-                          onChange={e => setFormState({...formState, budget: parseFloat(e.target.value) || 0})} 
+                          onChange={e => setFormState({...formState, budget: parseInt(e.target.value) || 0})}
                           className={`flex-1 p-4 rounded-2xl border-2 text-xl font-black outline-none transition-colors ${darkMode ? 'bg-zinc-950 border-zinc-800 text-white focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-indigo-500'}`} 
                         />
-                        <select
-                          value={formState.currency}
-                          onChange={e => setFormState({...formState, currency: e.target.value})}
-                          className={`w-24 p-4 rounded-2xl border-2 text-xl font-black outline-none transition-colors appearance-none text-center ${darkMode ? 'bg-zinc-950 border-zinc-800 text-white focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-indigo-500'}`}
+                        <select 
+                          value={formState.currency} 
+                          onChange={e => setFormState({...formState, currency: e.target.value})} 
+                          className={`w-24 p-4 rounded-2xl border-2 font-black outline-none appearance-none text-center ${darkMode ? 'bg-zinc-950 border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-200 text-zinc-900'}`}
                         >
-                          <option value="$">$</option>
-                          <option value="€">€</option>
-                          <option value="£">£</option>
-                          <option value="¥">¥</option>
-                          <option value="₩">₩</option>
+                          {['$', 'HKD', 'JPY', 'KRW', 'EUR', 'GBP', 'TWD'].map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
                    </div>
-                   
-                   {/* Description Field - Acts as Trip Intent for AI Mode */}
+
                    {mode === 'ai' && (
-                      <div className="space-y-3 animate-in fade-in">
-                        <label className={`text-[10px] font-black uppercase tracking-widest px-1 text-indigo-500`}>{t.tripIntent}</label>
+                     <div className="space-y-3 animate-in fade-in">
+                        <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${darkMode ? 'text-white' : 'text-zinc-500'}`}>{t.tripIntent}</label>
                         <textarea 
                           value={formState.intent} 
                           onChange={e => setFormState({...formState, intent: e.target.value})} 
-                          className={`w-full p-4 rounded-2xl border-2 text-sm font-bold outline-none min-h-[120px] resize-none transition-colors ${darkMode ? 'bg-zinc-950 border-indigo-900/50 text-white focus:border-indigo-500' : 'bg-indigo-50/50 border-indigo-100 text-zinc-900 focus:border-indigo-500'}`} 
+                          className={`w-full p-4 rounded-2xl border-2 font-medium outline-none resize-none h-32 transition-colors ${darkMode ? 'bg-zinc-950 border-zinc-800 text-white focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-indigo-500'}`} 
                           placeholder={t.tripIntentPlaceholder}
                         />
-                      </div>
+                     </div>
                    )}
                  </div>
                ) : (
                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                   <h3 className="text-xl font-black">Inspiration Board</h3>
-                   <p className="text-xs opacity-60">Paste links, upload screenshots, or add notes for your planning.</p>
-                   
-                   <div className={`p-4 rounded-2xl border-2 space-y-4 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black uppercase tracking-widest opacity-50">URL</label>
-                         <input 
-                           value={resourceInput.url}
-                           onChange={e => setResourceInput({...resourceInput, url: e.target.value})}
-                           placeholder="https://..."
-                           className={`w-full p-3 rounded-xl text-sm font-bold outline-none border ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-200'}`}
-                         />
+                    {/* Resource List */}
+                    {newResources.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-3">
+                        {newResources.map((res, idx) => (
+                          <div key={res.id} className={`flex items-center gap-3 p-3 rounded-xl border ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
+                             <div className="w-12 h-12 rounded-lg bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0">
+                               {res.image ? <img src={res.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs">🔗</div>}
+                             </div>
+                             <div className="flex-1 min-w-0">
+                               <div className="font-bold text-sm truncate">{res.title}</div>
+                               <div className="text-xs opacity-50 truncate">{res.url}</div>
+                             </div>
+                             <button onClick={() => setNewResources(newResources.filter((_, i) => i !== idx))} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg">
+                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                             </button>
+                          </div>
+                        ))}
                       </div>
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Title</label>
-                         <input 
-                           value={resourceInput.title}
-                           onChange={e => setResourceInput({...resourceInput, title: e.target.value})}
-                           placeholder="e.g. Dream Hotel, Blog Post"
-                           className={`w-full p-3 rounded-xl text-sm font-bold outline-none border ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-200'}`}
-                         />
+                    ) : (
+                      <div className="text-center py-12 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl opacity-50">
+                        {t.noResourcesAdded}
                       </div>
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Screenshot / Image</label>
-                         <label className={`block w-full p-3 rounded-xl border border-dashed text-center cursor-pointer transition-colors ${darkMode ? 'border-zinc-700 hover:border-zinc-500' : 'border-zinc-300 hover:border-zinc-400'}`}>
-                            <span className="text-xs font-bold opacity-60">{resourceInput.image ? 'Image Selected (Click to change)' : 'Click to Upload'}</span>
-                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                         </label>
-                         {resourceInput.image && (
-                           <div className="relative aspect-video rounded-lg overflow-hidden border border-zinc-500/20">
-                             <img src={resourceInput.image} className="w-full h-full object-cover" />
-                             <button onClick={() => setResourceInput({...resourceInput, image: ''})} className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                           </div>
-                         )}
-                      </div>
-                      <button 
-                        onClick={handleAddResource}
-                        disabled={!resourceInput.url && !resourceInput.image}
-                        className="w-full py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-black text-xs uppercase tracking-widest disabled:opacity-50"
-                      >
-                        Add Resource
-                      </button>
-                   </div>
+                    )}
 
-                   <div className="space-y-3">
-                      {newResources.map((res, i) => (
-                        <div key={res.id} className={`flex gap-3 p-3 rounded-xl border group ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-200'}`}>
-                           <div className="w-16 h-16 rounded-lg bg-zinc-200 dark:bg-zinc-800 shrink-0 overflow-hidden">
-                              {res.image ? <img src={res.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xl">🔗</div>}
-                           </div>
-                           <div className="flex-1 min-w-0">
-                              <div className="font-bold text-sm truncate">{res.title}</div>
-                              {res.url && <a href={res.url} target="_blank" rel="noreferrer" className="text-xs text-indigo-500 hover:underline truncate block">{res.url}</a>}
-                           </div>
-                           <button 
-                             onClick={() => setNewResources(newResources.filter(r => r.id !== res.id))}
-                             className="p-2 text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                           >
-                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                           </button>
-                        </div>
-                      ))}
-                      {newResources.length === 0 && (
-                        <div className="text-center py-8 opacity-40 text-xs font-bold">No resources added.</div>
-                      )}
-                   </div>
+                    {/* Add Resource Form */}
+                    <div className={`p-4 rounded-2xl border-2 space-y-3 ${darkMode ? 'border-zinc-800 bg-zinc-950' : 'border-zinc-200 bg-zinc-50'}`}>
+                       <h4 className="font-black text-xs uppercase tracking-widest">{t.addResource}</h4>
+                       <input 
+                         value={resourceInput.title}
+                         onChange={e => setResourceInput({...resourceInput, title: e.target.value})}
+                         placeholder={t.title}
+                         className={`w-full p-3 rounded-xl text-sm font-bold border outline-none ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-200'}`}
+                       />
+                       <input 
+                         value={resourceInput.url}
+                         onChange={e => setResourceInput({...resourceInput, url: e.target.value})}
+                         placeholder={t.url}
+                         className={`w-full p-3 rounded-xl text-sm font-bold border outline-none ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-200'}`}
+                       />
+                       <div className="flex gap-2">
+                          <label className={`flex-1 p-3 rounded-xl border border-dashed cursor-pointer flex items-center justify-center gap-2 text-xs font-bold ${darkMode ? 'border-zinc-700 hover:bg-zinc-900' : 'border-zinc-300 hover:bg-zinc-100'}`}>
+                             {resourceInput.image ? t.imageSelected : t.clickToUpload}
+                             <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                          </label>
+                          <button 
+                            onClick={handleAddResource}
+                            disabled={!resourceInput.url && !resourceInput.image}
+                            className="px-6 rounded-xl bg-indigo-600 text-white font-black text-xs uppercase tracking-widest disabled:opacity-50"
+                          >
+                            +
+                          </button>
+                       </div>
+                    </div>
                  </div>
                )}
              </div>
 
-             <div className="mt-4 pt-6 flex gap-4 border-t border-zinc-200 dark:border-zinc-800 shrink-0">
-               <button onClick={() => setIsCreating(false)} className={`flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-2xl transition-colors ${darkMode ? 'bg-zinc-800 text-white hover:bg-zinc-700' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}>
-                 {t.cancel}
-               </button>
-               <button 
-                 onClick={handleCreateTrip}
-                 disabled={isGenerating || !formState.destination || !startDate}
-                 className={`flex-[2] py-4 font-black uppercase tracking-widest text-xs rounded-2xl bg-indigo-600 text-white shadow-xl hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 ${isGenerating || !formState.destination || !startDate ? 'opacity-50 cursor-not-allowed' : ''}`}
-               >
-                 {isGenerating && <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
-                 {mode === 'ai' ? t.generate : t.startJourney}
-               </button>
+             {/* Footer Actions */}
+             <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 mt-auto shrink-0 flex gap-4">
+                <button onClick={() => setIsCreating(false)} className={`flex-1 py-4 rounded-2xl font-black uppercase text-xs tracking-widest ${darkMode ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}>
+                  {t.cancel}
+                </button>
+                <button 
+                  onClick={handleCreateTrip} 
+                  disabled={!formState.destination || isGenerating}
+                  className="flex-[2] py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase text-xs tracking-widest shadow-xl hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                >
+                  {isGenerating ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      {t.generatingTrip}
+                    </>
+                  ) : (
+                    mode === 'ai' ? t.generate : t.startJourney
+                  )}
+                </button>
              </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {tripToDelete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setTripToDelete(null)} />
-          <div className={`relative w-full max-w-sm p-6 rounded-[2rem] shadow-2xl animate-in zoom-in-95 ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
-            <h3 className={`text-xl font-black mb-2 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Delete Trip?</h3>
-            <p className="text-sm text-zinc-500 font-bold mb-6">This action cannot be undone. All data will be lost.</p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setTripToDelete(null)} 
-                className={`flex-1 py-3 rounded-xl font-black uppercase text-xs tracking-widest ${darkMode ? 'bg-zinc-800 text-white hover:bg-zinc-700' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={confirmDelete} 
-                className="flex-1 py-3 rounded-xl font-black uppercase text-xs tracking-widest bg-rose-500 text-white hover:bg-rose-600 shadow-lg shadow-rose-500/30"
-              >
-                Delete
-              </button>
-            </div>
           </div>
         </div>
       )}
