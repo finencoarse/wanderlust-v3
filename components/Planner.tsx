@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Trip, UserProfile, Language, CustomEvent } from '../types';
+import { Trip, UserProfile, Language, CustomEvent, PlanningResource } from '../types';
 import { translations } from '../translations';
 import { GeminiService } from '../services/geminiService';
 
@@ -37,6 +37,7 @@ const Planner: React.FC<PlannerProps> = ({
 }) => {
   const t = translations[language];
   const [isCreating, setIsCreating] = useState(false);
+  const [createTab, setCreateTab] = useState<'details' | 'resources'>('details');
   const [mode, setMode] = useState<'manual' | 'ai'>('manual');
   const [isGenerating, setIsGenerating] = useState(false);
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
@@ -57,6 +58,10 @@ const Planner: React.FC<PlannerProps> = ({
     currency: '$',
     intent: ''
   });
+
+  // Resources State
+  const [newResources, setNewResources] = useState<PlanningResource[]>([]);
+  const [resourceInput, setResourceInput] = useState<{ title: string; url: string; image: string }>({ title: '', url: '', image: '' });
 
   // Calendar Logic
   const getDaysArray = (year: number, month: number) => {
@@ -111,6 +116,32 @@ const Planner: React.FC<PlannerProps> = ({
     setCalendarView(new Date(calendarView.getFullYear(), calendarView.getMonth() + delta, 1));
   };
 
+  const handleAddResource = () => {
+    if (!resourceInput.url && !resourceInput.image) return;
+    
+    setNewResources([
+      ...newResources,
+      {
+        id: Date.now().toString(),
+        title: resourceInput.title || 'Untitled Resource',
+        url: resourceInput.url,
+        image: resourceInput.image
+      }
+    ]);
+    setResourceInput({ title: '', url: '', image: '' });
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setResourceInput(prev => ({ ...prev, image: event.target?.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleCreateTrip = async () => {
     if (!formState.destination || !startDate) return;
 
@@ -141,7 +172,8 @@ const Planner: React.FC<PlannerProps> = ({
         favoriteDays: [],
         itinerary: {},
         budget: formState.budget,
-        defaultCurrency: formState.currency
+        defaultCurrency: formState.currency,
+        resources: newResources
       };
       
       // Initialize empty itinerary
@@ -153,6 +185,7 @@ const Planner: React.FC<PlannerProps> = ({
 
       onAddTrip(newTrip);
       setIsCreating(false);
+      setNewResources([]);
       onOpenTrip(newTrip.id);
     } else {
       // AI Mode
@@ -199,11 +232,13 @@ const Planner: React.FC<PlannerProps> = ({
              favoriteDays: [],
              itinerary: mappedItinerary,
              budget: formState.budget,
-             defaultCurrency: formState.currency
+             defaultCurrency: formState.currency,
+             resources: newResources
           };
           
           onAddTrip(newTrip);
           setIsCreating(false);
+          setNewResources([]);
           onOpenTrip(newTrip.id);
         } else {
           alert('Failed to generate trip. Please try again.');
@@ -237,7 +272,7 @@ const Planner: React.FC<PlannerProps> = ({
            <p className="text-sm font-bold text-gray-400">{t.dreamDesignDo}</p>
         </div>
         <button 
-          onClick={() => setIsCreating(true)}
+          onClick={() => { setIsCreating(true); setCreateTab('details'); setFormState({ destination: '', budget: 0, currency: '$', intent: '' }); setNewResources([]); setStartDate(new Date()); setEndDate(null); }}
           className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-indigo-700 active:scale-95 transition-all"
         >
           + {t.planATrip}
@@ -255,6 +290,12 @@ const Planner: React.FC<PlannerProps> = ({
                >
                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                </button>
+               {trip.resources && trip.resources.length > 0 && (
+                 <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/50 backdrop-blur-md rounded-lg text-white text-[10px] font-bold flex items-center gap-1">
+                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                   {trip.resources.length}
+                 </div>
+               )}
              </div>
              <h3 className="text-xl font-black mb-1">{trip.title}</h3>
              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">{trip.startDate} • {Object.keys(trip.itinerary).length} Days</p>
@@ -272,103 +313,197 @@ const Planner: React.FC<PlannerProps> = ({
       </div>
 
       {isCreating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCreating(false)} />
-          <div className={`relative w-full max-w-lg p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
-             <h3 className="text-3xl font-black mb-8">{t.newJourney}</h3>
+          <div className={`relative w-full max-w-2xl p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 max-h-[95vh] flex flex-col ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+             {/* Header */}
+             <div className="flex justify-between items-center mb-6 shrink-0">
+               <h3 className="text-3xl font-black">{t.newJourney}</h3>
+               <button onClick={() => setIsCreating(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+             </div>
+
+             {/* Tab Bar */}
+             <div className="flex p-1 rounded-xl bg-zinc-100 dark:bg-zinc-800 mb-6 shrink-0">
+                <button 
+                  onClick={() => setCreateTab('details')} 
+                  className={`flex-1 py-3 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${createTab === 'details' ? 'bg-white dark:bg-zinc-700 shadow text-black dark:text-white' : 'text-zinc-400'}`}
+                >
+                  Trip Details
+                </button>
+                <button 
+                  onClick={() => setCreateTab('resources')} 
+                  className={`flex-1 py-3 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${createTab === 'resources' ? 'bg-white dark:bg-zinc-700 shadow text-black dark:text-white' : 'text-zinc-400'}`}
+                >
+                  Resources {newResources.length > 0 && `(${newResources.length})`}
+                </button>
+             </div>
              
-             {/* Mode Switch */}
-             <div className="flex p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-800 mb-8">
-                <button onClick={() => setMode('manual')} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${mode === 'manual' ? 'bg-white dark:bg-zinc-700 shadow-md text-black dark:text-white' : 'text-gray-400'}`}>
-                  {t.manualMode}
-                </button>
-                <button onClick={() => setMode('ai')} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${mode === 'ai' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400'}`}>
-                  {t.aiMode}
-                </button>
+             {/* Scrollable Content */}
+             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+               {createTab === 'details' ? (
+                 <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
+                   {/* Mode Switch */}
+                   <div className="flex p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-800">
+                      <button onClick={() => setMode('manual')} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${mode === 'manual' ? 'bg-white dark:bg-zinc-700 shadow-md text-black dark:text-white' : 'text-gray-400'}`}>
+                        {t.manualMode}
+                      </button>
+                      <button onClick={() => setMode('ai')} className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${mode === 'ai' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400'}`}>
+                        {t.aiMode}
+                      </button>
+                   </div>
+
+                   <div className="space-y-3">
+                      <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${darkMode ? 'text-white' : 'text-zinc-500'}`}>{t.destination}</label>
+                      <input required value={formState.destination} onChange={e => setFormState({...formState, destination: e.target.value})} className={`w-full p-4 rounded-2xl border-2 text-xl font-black outline-none transition-colors ${darkMode ? 'bg-zinc-950 border-zinc-800 text-white focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-indigo-500'}`} placeholder="Paris, France" />
+                   </div>
+                   
+                   {/* Custom Mini Calendar */}
+                   <div className="space-y-3">
+                      <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${darkMode ? 'text-white' : 'text-zinc-500'}`}>{t.chooseDates} {startDate && endDate && <span className="opacity-50 ml-2">({Math.ceil((Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1)} Days)</span>}</label>
+                      <div className={`p-4 rounded-2xl border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
+                        <div className="flex justify-between items-center mb-4">
+                          <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg></button>
+                          <span className="font-bold text-sm">{monthName}</span>
+                          <button onClick={() => changeMonth(1)} className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"/></svg></button>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                          {['S','M','T','W','T','F','S'].map(d => <span key={d} className="text-[10px] font-black opacity-30">{d}</span>)}
+                        </div>
+                        <div className="grid grid-cols-7 gap-1">
+                          {calendarDays.map((day, idx) => {
+                            if (!day) return <div key={idx} />;
+                            const selected = isSelected(day);
+                            const inRange = isInRange(day);
+                            return (
+                              <button
+                                key={idx}
+                                onClick={() => handleDateSelect(day)}
+                                className={`
+                                  aspect-square rounded-full flex items-center justify-center text-xs font-bold transition-all
+                                  ${selected ? 'bg-indigo-600 text-white shadow-md scale-110 z-10' : ''}
+                                  ${inRange ? (darkMode ? 'bg-indigo-900/30 text-indigo-200' : 'bg-indigo-100 text-indigo-700') : ''}
+                                  ${!selected && !inRange ? (darkMode ? 'text-zinc-400 hover:bg-zinc-800' : 'text-zinc-600 hover:bg-zinc-200') : ''}
+                                `}
+                              >
+                                {day.getDate()}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                   </div>
+
+                   <div className="space-y-3">
+                      <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${darkMode ? 'text-white' : 'text-zinc-500'}`}>{t.budget}</label>
+                      <div className="flex gap-3">
+                        <input 
+                          required 
+                          type="number" 
+                          placeholder="0" 
+                          value={formState.budget === 0 ? '' : formState.budget} 
+                          onChange={e => setFormState({...formState, budget: parseFloat(e.target.value) || 0})} 
+                          className={`flex-1 p-4 rounded-2xl border-2 text-xl font-black outline-none transition-colors ${darkMode ? 'bg-zinc-950 border-zinc-800 text-white focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-indigo-500'}`} 
+                        />
+                        <select
+                          value={formState.currency}
+                          onChange={e => setFormState({...formState, currency: e.target.value})}
+                          className={`w-24 p-4 rounded-2xl border-2 text-xl font-black outline-none transition-colors appearance-none text-center ${darkMode ? 'bg-zinc-950 border-zinc-800 text-white focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-indigo-500'}`}
+                        >
+                          <option value="$">$</option>
+                          <option value="€">€</option>
+                          <option value="£">£</option>
+                          <option value="¥">¥</option>
+                          <option value="₩">₩</option>
+                        </select>
+                      </div>
+                   </div>
+                   
+                   {/* Description Field - Acts as Trip Intent for AI Mode */}
+                   {mode === 'ai' && (
+                      <div className="space-y-3 animate-in fade-in">
+                        <label className={`text-[10px] font-black uppercase tracking-widest px-1 text-indigo-500`}>{t.tripIntent}</label>
+                        <textarea 
+                          value={formState.intent} 
+                          onChange={e => setFormState({...formState, intent: e.target.value})} 
+                          className={`w-full p-4 rounded-2xl border-2 text-sm font-bold outline-none min-h-[120px] resize-none transition-colors ${darkMode ? 'bg-zinc-950 border-indigo-900/50 text-white focus:border-indigo-500' : 'bg-indigo-50/50 border-indigo-100 text-zinc-900 focus:border-indigo-500'}`} 
+                          placeholder={t.tripIntentPlaceholder}
+                        />
+                      </div>
+                   )}
+                 </div>
+               ) : (
+                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                   <h3 className="text-xl font-black">Inspiration Board</h3>
+                   <p className="text-xs opacity-60">Paste links, upload screenshots, or add notes for your planning.</p>
+                   
+                   <div className={`p-4 rounded-2xl border-2 space-y-4 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-black uppercase tracking-widest opacity-50">URL</label>
+                         <input 
+                           value={resourceInput.url}
+                           onChange={e => setResourceInput({...resourceInput, url: e.target.value})}
+                           placeholder="https://..."
+                           className={`w-full p-3 rounded-xl text-sm font-bold outline-none border ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-200'}`}
+                         />
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Title</label>
+                         <input 
+                           value={resourceInput.title}
+                           onChange={e => setResourceInput({...resourceInput, title: e.target.value})}
+                           placeholder="e.g. Dream Hotel, Blog Post"
+                           className={`w-full p-3 rounded-xl text-sm font-bold outline-none border ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-200'}`}
+                         />
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-black uppercase tracking-widest opacity-50">Screenshot / Image</label>
+                         <label className={`block w-full p-3 rounded-xl border border-dashed text-center cursor-pointer transition-colors ${darkMode ? 'border-zinc-700 hover:border-zinc-500' : 'border-zinc-300 hover:border-zinc-400'}`}>
+                            <span className="text-xs font-bold opacity-60">{resourceInput.image ? 'Image Selected (Click to change)' : 'Click to Upload'}</span>
+                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                         </label>
+                         {resourceInput.image && (
+                           <div className="relative aspect-video rounded-lg overflow-hidden border border-zinc-500/20">
+                             <img src={resourceInput.image} className="w-full h-full object-cover" />
+                             <button onClick={() => setResourceInput({...resourceInput, image: ''})} className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                           </div>
+                         )}
+                      </div>
+                      <button 
+                        onClick={handleAddResource}
+                        disabled={!resourceInput.url && !resourceInput.image}
+                        className="w-full py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-black text-xs uppercase tracking-widest disabled:opacity-50"
+                      >
+                        Add Resource
+                      </button>
+                   </div>
+
+                   <div className="space-y-3">
+                      {newResources.map((res, i) => (
+                        <div key={res.id} className={`flex gap-3 p-3 rounded-xl border group ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-200'}`}>
+                           <div className="w-16 h-16 rounded-lg bg-zinc-200 dark:bg-zinc-800 shrink-0 overflow-hidden">
+                              {res.image ? <img src={res.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xl">🔗</div>}
+                           </div>
+                           <div className="flex-1 min-w-0">
+                              <div className="font-bold text-sm truncate">{res.title}</div>
+                              {res.url && <a href={res.url} target="_blank" rel="noreferrer" className="text-xs text-indigo-500 hover:underline truncate block">{res.url}</a>}
+                           </div>
+                           <button 
+                             onClick={() => setNewResources(newResources.filter(r => r.id !== res.id))}
+                             className="p-2 text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                           >
+                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                           </button>
+                        </div>
+                      ))}
+                      {newResources.length === 0 && (
+                        <div className="text-center py-8 opacity-40 text-xs font-bold">No resources added.</div>
+                      )}
+                   </div>
+                 </div>
+               )}
              </div>
 
-             <div className="space-y-8">
-                <div className="space-y-3">
-                  <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${darkMode ? 'text-white' : 'text-zinc-500'}`}>{t.destination}</label>
-                  <input required value={formState.destination} onChange={e => setFormState({...formState, destination: e.target.value})} className={`w-full p-4 rounded-2xl border-2 text-xl font-black outline-none transition-colors ${darkMode ? 'bg-zinc-950 border-zinc-800 text-white focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-indigo-500'}`} placeholder="Paris, France" />
-                </div>
-                
-                {/* Custom Mini Calendar */}
-                <div className="space-y-3">
-                  <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${darkMode ? 'text-white' : 'text-zinc-500'}`}>{t.chooseDates} {startDate && endDate && <span className="opacity-50 ml-2">({Math.ceil((Math.abs(endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1)} Days)</span>}</label>
-                  <div className={`p-4 rounded-2xl border-2 ${darkMode ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
-                    <div className="flex justify-between items-center mb-4">
-                      <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg></button>
-                      <span className="font-bold text-sm">{monthName}</span>
-                      <button onClick={() => changeMonth(1)} className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7"/></svg></button>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                      {['S','M','T','W','T','F','S'].map(d => <span key={d} className="text-[10px] font-black opacity-30">{d}</span>)}
-                    </div>
-                    <div className="grid grid-cols-7 gap-1">
-                      {calendarDays.map((day, idx) => {
-                        if (!day) return <div key={idx} />;
-                        const selected = isSelected(day);
-                        const inRange = isInRange(day);
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => handleDateSelect(day)}
-                            className={`
-                              aspect-square rounded-full flex items-center justify-center text-xs font-bold transition-all
-                              ${selected ? 'bg-indigo-600 text-white shadow-md scale-110 z-10' : ''}
-                              ${inRange ? (darkMode ? 'bg-indigo-900/30 text-indigo-200' : 'bg-indigo-100 text-indigo-700') : ''}
-                              ${!selected && !inRange ? (darkMode ? 'text-zinc-400 hover:bg-zinc-800' : 'text-zinc-600 hover:bg-zinc-200') : ''}
-                            `}
-                          >
-                            {day.getDate()}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${darkMode ? 'text-white' : 'text-zinc-500'}`}>{t.budget}</label>
-                  <div className="flex gap-3">
-                    <input 
-                      required 
-                      type="number" 
-                      placeholder="0" 
-                      value={formState.budget === 0 ? '' : formState.budget} 
-                      onChange={e => setFormState({...formState, budget: parseFloat(e.target.value) || 0})} 
-                      className={`flex-1 p-4 rounded-2xl border-2 text-xl font-black outline-none transition-colors ${darkMode ? 'bg-zinc-950 border-zinc-800 text-white focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-indigo-500'}`} 
-                    />
-                    <select
-                      value={formState.currency}
-                      onChange={e => setFormState({...formState, currency: e.target.value})}
-                      className={`w-24 p-4 rounded-2xl border-2 text-xl font-black outline-none transition-colors appearance-none text-center ${darkMode ? 'bg-zinc-950 border-zinc-800 text-white focus:border-indigo-500' : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-indigo-500'}`}
-                    >
-                      <option value="$">$</option>
-                      <option value="€">€</option>
-                      <option value="£">£</option>
-                      <option value="¥">¥</option>
-                      <option value="₩">₩</option>
-                    </select>
-                  </div>
-                </div>
-                
-                {/* Description Field - Acts as Trip Intent for AI Mode */}
-                {mode === 'ai' && (
-                  <div className="space-y-3 animate-in fade-in">
-                    <label className={`text-[10px] font-black uppercase tracking-widest px-1 text-indigo-500`}>{t.tripIntent}</label>
-                    <textarea 
-                      value={formState.intent} 
-                      onChange={e => setFormState({...formState, intent: e.target.value})} 
-                      className={`w-full p-4 rounded-2xl border-2 text-sm font-bold outline-none min-h-[120px] resize-none transition-colors ${darkMode ? 'bg-zinc-950 border-indigo-900/50 text-white focus:border-indigo-500' : 'bg-indigo-50/50 border-indigo-100 text-zinc-900 focus:border-indigo-500'}`} 
-                      placeholder={t.tripIntentPlaceholder}
-                    />
-                  </div>
-                )}
-             </div>
-
-             <div className="mt-10 flex gap-4">
+             <div className="mt-4 pt-6 flex gap-4 border-t border-zinc-200 dark:border-zinc-800 shrink-0">
                <button onClick={() => setIsCreating(false)} className={`flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-2xl transition-colors ${darkMode ? 'bg-zinc-800 text-white hover:bg-zinc-700' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}>
                  {t.cancel}
                </button>
