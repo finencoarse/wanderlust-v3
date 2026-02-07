@@ -22,6 +22,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
   const [activeTab, setActiveTab] = useState<'itinerary' | 'photos' | 'info' | 'accommodation'>('itinerary');
   const [selectedDate, setSelectedDate] = useState<string>(Object.keys(trip.itinerary).sort()[0] || trip.startDate);
   const [itineraryView, setItineraryView] = useState<'day' | 'overview'>('day');
+  const [isFlexibleMode, setIsFlexibleMode] = useState(false);
   
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -305,6 +306,38 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     newItinerary[targetDate] = newTargetList;
 
     onUpdate({ ...trip, itinerary: newItinerary });
+  };
+
+  // New function to handle reordering within the same day
+  const handleReorderEvent = (dragId: string, dropId: string) => {
+    const items = [...(trip.itinerary[selectedDate] || [])];
+    const dragIndex = items.findIndex(i => i.id === dragId);
+    const dropIndex = items.findIndex(i => i.id === dropId);
+    
+    if (dragIndex === -1 || dropIndex === -1 || dragIndex === dropIndex) return;
+
+    const [draggedItem] = items.splice(dragIndex, 1);
+    items.splice(dropIndex, 0, draggedItem);
+
+    // Update period to match new neighborhood to maintain some consistency when switching views
+    const prevItem = items[dropIndex - 1];
+    const nextItem = items[dropIndex + 1];
+    
+    if (prevItem && prevItem.period) {
+        draggedItem.period = prevItem.period;
+    } else if (nextItem && nextItem.period) {
+        draggedItem.period = nextItem.period;
+    } else if (!draggedItem.period) {
+        draggedItem.period = 'morning';
+    }
+
+    onUpdate({
+        ...trip,
+        itinerary: {
+            ...trip.itinerary,
+            [selectedDate]: items
+        }
+    });
   };
 
   const handleDeleteEvent = (eventId: string, date: string) => {
@@ -752,19 +785,50 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
     return url.includes('google.com/maps') || url.includes('goo.gl/maps');
   };
 
-  const renderEventCard = (item: ItineraryItem, dateContext: string, isDraggable = false) => (
+  const renderEventCard = (item: ItineraryItem, dateContext: string, isDraggable = false) => {
+    // If Flexible Mode is active in Day View, ensure items are draggable within the view context
+    const isFlexible = isFlexibleMode && itineraryView === 'day';
+    
+    return (
     <div 
       key={item.id} 
-      draggable={isDraggable}
-      onDragStart={(e) => isDraggable && onDragStart(e, item.id, dateContext)}
+      draggable={isDraggable || isFlexible}
+      onDragStart={(e) => (isDraggable || isFlexible) && onDragStart(e, item.id, dateContext)}
+      onDragOver={(e) => {
+        if (isFlexible) {
+            e.preventDefault(); // Allow drop
+        }
+      }}
+      onDrop={(e) => {
+        if (isFlexible) {
+            e.preventDefault();
+            e.stopPropagation();
+            const dataStr = e.dataTransfer.getData('text/plain');
+            if (dataStr) {
+                try {
+                    const data = JSON.parse(dataStr);
+                    // Only reorder if dragging within the same day and different item
+                    if (data.id && data.id !== item.id && data.date === dateContext) {
+                        handleReorderEvent(data.id, item.id);
+                    }
+                } catch(e) {}
+            }
+        }
+      }}
       onClick={() => setSelectedDiscoveryId(selectedDiscoveryId === item.id ? null : item.id)}
       className={`group relative p-5 rounded-[2rem] border transition-all cursor-pointer 
-        ${isDraggable ? 'cursor-grab active:cursor-grabbing hover:shadow-xl active:scale-[0.98]' : 'hover:scale-[1.01] hover:shadow-lg'}
+        ${(isDraggable || isFlexible) ? 'cursor-grab active:cursor-grabbing hover:shadow-xl active:scale-[0.98]' : 'hover:scale-[1.01] hover:shadow-lg'}
         ${selectedDiscoveryId === item.id ? 'ring-2 ring-indigo-500 scale-[1.02] shadow-xl z-10' : ''} 
         ${darkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-100'}
         ${item.type === 'hotel' ? 'border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-900/30' : ''}`}
     >
       <div className="flex items-start gap-4">
+        {/* Drag Handle for Flexible Mode */}
+        {isFlexible && (
+            <div className="flex items-center justify-center self-center text-zinc-300 dark:text-zinc-600 cursor-grab">
+               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>
+            </div>
+        )}
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner shrink-0 ${
           item.type === 'eating' ? 'bg-orange-100 text-orange-500' :
           item.type === 'sightseeing' ? 'bg-blue-100 text-blue-500' :
@@ -847,6 +911,7 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
       )}
     </div>
   );
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
@@ -1055,17 +1120,26 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
               <div className="space-y-4 min-h-[300px]">
                 <div className="flex justify-between items-center px-2">
                   <h3 className="text-xl font-black">{new Date(selectedDate).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h3>
-                  <button 
-                    onClick={() => {
-                      setEditingEventId(null);
-                      setEditingEventDate(selectedDate);
-                      setEventForm({ title: '', address: '', description: '', time: '', date: selectedDate, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '', lat: undefined, lng: undefined });
-                      setShowEventModal(true);
-                    }}
-                    className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
-                  >
-                    + {t.addEvent}
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setIsFlexibleMode(!isFlexibleMode)}
+                      className={`p-2 rounded-xl transition-all shadow-sm active:scale-95 ${isFlexibleMode ? 'bg-indigo-600 text-white ring-2 ring-indigo-300 dark:ring-indigo-800' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
+                      title="Flexible Mode (Drag to Reorder)"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setEditingEventId(null);
+                        setEditingEventDate(selectedDate);
+                        setEventForm({ title: '', address: '', description: '', time: '', date: selectedDate, period: 'morning', type: 'sightseeing', estimatedExpense: 0, currency: trip.defaultCurrency, url: '', screenshot: '', lat: undefined, lng: undefined });
+                        setShowEventModal(true);
+                      }}
+                      className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg hover:scale-105 transition-transform"
+                    >
+                      + {t.addEvent}
+                    </button>
+                  </div>
                 </div>
 
                 {itemsForMap.length === 0 ? (
@@ -1074,43 +1148,69 @@ const TripDetail: React.FC<TripDetailProps> = ({ trip, onUpdate, onEditPhoto, on
                   </div>
                 ) : (
                   <div className="space-y-8">
-                    {/* Render Hotel as Start Point if available */}
-                    {itemsForMap[0].type === 'hotel' && (
-                       <div className="space-y-4 animate-in slide-in-from-left-4 duration-500">
-                          <div className="flex items-center gap-2 px-2">
-                             <span className="text-xl">🛌</span>
-                             <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.startPoint}</h4>
-                          </div>
-                          {renderEventCard(itemsForMap[0], selectedDate)}
-                       </div>
-                    )}
+                    {isFlexibleMode ? (
+                        <div className="space-y-4 animate-in fade-in">
+                            <div className="text-center pb-2">
+                                <span className="px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest">
+                                    Flexible Mode Active - Drag items to reorder
+                                </span>
+                            </div>
+                            {/* Render Hotel as Start Point if available (Fixed at top, not draggable for simplicity in this mode) */}
+                            {!selectedDate.startsWith(trip.startDate) && trip.hotels?.[0] && (
+                                <div className="opacity-60 pointer-events-none grayscale">
+                                    {renderEventCard({
+                                        id: 'hotel-start-fixed',
+                                        title: trip.hotels[0].name,
+                                        type: 'hotel',
+                                        description: 'Starting Point',
+                                        estimatedExpense: 0, actualExpense: 0, currency: trip.defaultCurrency,
+                                        url: trip.hotels[0].website || trip.hotels[0].bookingUrl
+                                    } as ItineraryItem, selectedDate, false)}
+                                </div>
+                            )}
+                            {currentItinerary.map(item => renderEventCard(item, selectedDate, true))}
+                        </div>
+                    ) : (
+                        <>
+                            {/* Render Hotel as Start Point if available */}
+                            {itemsForMap[0].type === 'hotel' && (
+                            <div className="space-y-4 animate-in slide-in-from-left-4 duration-500">
+                                <div className="flex items-center gap-2 px-2">
+                                    <span className="text-xl">🛌</span>
+                                    <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.startPoint}</h4>
+                                </div>
+                                {renderEventCard(itemsForMap[0], selectedDate)}
+                            </div>
+                            )}
 
-                    {groupedEvents.morning.length > 0 && (
-                      <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-100">
-                        <div className="flex items-center gap-2 px-2">
-                          <span className="text-xl">🌅</span>
-                          <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.morning}</h4>
-                        </div>
-                        {groupedEvents.morning.map(item => renderEventCard(item, selectedDate))}
-                      </div>
-                    )}
-                    {groupedEvents.afternoon.length > 0 && (
-                      <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-200">
-                        <div className="flex items-center gap-2 px-2">
-                          <span className="text-xl">☀️</span>
-                          <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.afternoon}</h4>
-                        </div>
-                        {groupedEvents.afternoon.map(item => renderEventCard(item, selectedDate))}
-                      </div>
-                    )}
-                    {groupedEvents.night.length > 0 && (
-                      <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-300">
-                        <div className="flex items-center gap-2 px-2">
-                          <span className="text-xl">🌙</span>
-                          <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.night}</h4>
-                        </div>
-                        {groupedEvents.night.map(item => renderEventCard(item, selectedDate))}
-                      </div>
+                            {groupedEvents.morning.length > 0 && (
+                            <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-100">
+                                <div className="flex items-center gap-2 px-2">
+                                <span className="text-xl">🌅</span>
+                                <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.morning}</h4>
+                                </div>
+                                {groupedEvents.morning.map(item => renderEventCard(item, selectedDate))}
+                            </div>
+                            )}
+                            {groupedEvents.afternoon.length > 0 && (
+                            <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-200">
+                                <div className="flex items-center gap-2 px-2">
+                                <span className="text-xl">☀️</span>
+                                <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.afternoon}</h4>
+                                </div>
+                                {groupedEvents.afternoon.map(item => renderEventCard(item, selectedDate))}
+                            </div>
+                            )}
+                            {groupedEvents.night.length > 0 && (
+                            <div className="space-y-4 animate-in slide-in-from-left-4 duration-500 delay-300">
+                                <div className="flex items-center gap-2 px-2">
+                                <span className="text-xl">🌙</span>
+                                <h4 className="font-black uppercase tracking-widest text-sm opacity-60">{t.night}</h4>
+                                </div>
+                                {groupedEvents.night.map(item => renderEventCard(item, selectedDate))}
+                            </div>
+                            )}
+                        </>
                     )}
                   </div>
                 )}
