@@ -74,6 +74,9 @@ const App: React.FC = () => {
   // Track the previous view to return to when exiting trip details
   const [returnView, setReturnView] = useState<ViewState>('dashboard');
 
+  // Trigger state for auto-opening create modal in Planner
+  const [autoCreateTrip, setAutoCreateTrip] = useState(false);
+
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
   const [editingPhoto, setEditingPhoto] = useState<{ tripId: string, photo: Photo } | null>(null);
   const [showGuide, setShowGuide] = useState(false);
@@ -107,7 +110,6 @@ const App: React.FC = () => {
         }
       } else {
         // 3. Not in AI Studio and no env key? Assume standard deployment might inject it later or allow pass through
-        // but generally we mark as selected to avoid blocking UI if we can't do anything about it.
         setIsKeySelected(true);
       }
       setCheckingKey(false);
@@ -386,7 +388,20 @@ const App: React.FC = () => {
       <Header setView={setView} currentView={view} language={language} darkMode={darkMode} userProfile={userProfile} onShowGuide={() => setShowGuide(true)} />
       
       <main className="max-w-4xl mx-auto px-4 py-6 md:py-12">
-        {view === 'dashboard' && <Dashboard trips={trips.filter(t => t.status === 'past')} onOpenTrip={(id) => openTrip(id, 'dashboard')} onUpdateTrip={handleUpdateTrip} onDeleteTrip={handleDeleteTrip} language={language} darkMode={darkMode} />}
+        {view === 'dashboard' && (
+          <Dashboard 
+            trips={trips.filter(t => t.status === 'past')} 
+            onOpenTrip={(id) => openTrip(id, 'dashboard')} 
+            onUpdateTrip={handleUpdateTrip} 
+            onDeleteTrip={handleDeleteTrip} 
+            onRequestNewJourney={() => {
+              setAutoCreateTrip(true);
+              setView('planner');
+            }}
+            language={language} 
+            darkMode={darkMode} 
+          />
+        )}
         {view === 'trip-detail' && activeTrip && <TripDetail key={activeTrip.id} trip={activeTrip} onUpdate={handleUpdateTrip} onEditPhoto={(photo: Photo) => { setEditingPhoto({ tripId: activeTrip.id, photo }); setView('editor'); }} onBack={() => setView(returnView)} language={language} darkMode={darkMode} userProfile={userProfile} />}
         {view === 'planner' && (
           <Planner 
@@ -406,10 +421,12 @@ const App: React.FC = () => {
             onImportData={handleImportData}
             dataTimestamp={dataTimestamp}
             fullData={{ trips, userProfile, customEvents }}
+            autoCreate={autoCreateTrip}
+            onExitCreate={() => setAutoCreateTrip(false)}
           />
         )}
         {view === 'calendar' && <Calendar trips={trips} customEvents={customEvents} language={language} darkMode={darkMode} userProfile={userProfile} onOpenTrip={(id) => openTrip(id, 'calendar')} onUpdateEvents={handleSetCustomEvents} onCombineTrips={handleCombineTrips} onUpdateTrip={handleUpdateTrip} />}
-        {view === 'budget' && <Budget trips={trips} language={language} darkMode={darkMode} onUpdateTrip={handleUpdateTrip} />}
+        {view === 'budget' && <Budget trips={trips} language={language} darkMode={darkMode} onUpdateTrip={handleUpdateTrip} userProfile={userProfile} />}
         {view === 'editor' && editingPhoto && activeTrip && <ImageEditor photo={editingPhoto.photo} trip={activeTrip} onSave={(url: string, type?: 'image' | 'video') => {
           const updatedPhotos = activeTrip.photos.map(p => p.id === editingPhoto.photo.id ? { ...p, url, type } : p);
           handleUpdateTrip({ ...activeTrip, photos: updatedPhotos });
