@@ -4,17 +4,6 @@ import { ItineraryItem, TourGuideData, Trip, Hotel } from "../types";
 
 const STORAGE_KEY_GEMINI_COUNT = 'wanderlust_gemini_count';
 
-// Fallback data for when Gemini is unreachable (e.g., offline or restricted region)
-const FALLBACK_COUNTRIES = [
-  "United States", "United Kingdom", "Canada", "Australia", "Japan", "South Korea", 
-  "China", "Hong Kong SAR", "Macau SAR", "Taiwan", "France", "Germany", "Italy", 
-  "Spain", "Thailand", "Vietnam", "Singapore", "Malaysia", "Indonesia", "Philippines",
-  "India", "Brazil", "Mexico", "Argentina", "Chile", "South Africa", "Egypt", 
-  "United Arab Emirates", "Saudi Arabia", "Turkey", "Russia", "Netherlands", 
-  "Switzerland", "Sweden", "Norway", "Denmark", "Finland", "Poland", "Austria", 
-  "Belgium", "Portugal", "Greece", "Ireland", "New Zealand"
-];
-
 export class GeminiService {
   static getUsageCount(): number {
     return parseInt(localStorage.getItem(STORAGE_KEY_GEMINI_COUNT) || '0', 10);
@@ -255,72 +244,6 @@ export class GeminiService {
     }
   }
 
-  static async getMapRoute(location: string, items: ItineraryItem[], language: string = 'en'): Promise<{ text: string; links: { uri: string; title: string }[] }> {
-    try {
-      let latLng = undefined;
-      // Defensive check for geolocation (might not exist in non-secure contexts or server-side)
-      if (typeof navigator !== 'undefined' && navigator.geolocation) {
-        try {
-          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 });
-          });
-          latLng = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-        } catch (e) { /* ignore geolocation error */ }
-      }
-
-      const itemTitles = items.map(i => i.title).join(', ');
-      const prompt = `Visiting ${location}. Itinerary: ${itemTitles}. 
-      Suggest efficient route. Explain order. Provide Google Maps links.
-      Respond in ${language}.`;
-
-      const config: any = {
-        tools: [{ googleMaps: {} }]
-      };
-      
-      if (latLng) {
-        config.toolConfig = { retrievalConfig: { latLng } };
-      }
-
-      const apiKey = process.env.API_KEY;
-      let response;
-
-      if (apiKey && apiKey !== 'PASTE_YOUR_KEY_HERE') {
-         const ai = new GoogleGenAI({ apiKey });
-         response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config
-         });
-      } else {
-         const res = await fetch('/api/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: 'gemini-2.5-flash', contents: prompt, config })
-         });
-         response = await res.json();
-      }
-
-      // Handle extraction
-      let text = response.text; // SDK getter
-      if (typeof text !== 'string') { // Proxy raw object
-         text = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || "No suggestion found.";
-      }
-
-      const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-      const links = groundingChunks
-        .filter((chunk: any) => chunk.maps)
-        .map((chunk: any) => ({
-          uri: chunk.maps.uri,
-          title: chunk.maps.title || "View on Maps"
-        }));
-
-      return { text: text as string, links };
-    } catch (error) {
-      console.error('Error with Maps grounding:', error);
-      throw error;
-    }
-  }
-
   static async getEventLogistics(location: string, item: ItineraryItem, prevLocation: string | null, language: string = 'en'): Promise<{ price?: number, currency?: string, transportShort?: string, details?: string } | null> {
     try {
       const origin = prevLocation ? `from "${prevLocation}"` : 'from the city center';
@@ -371,6 +294,44 @@ export class GeminiService {
     }
   }
 
+  static async optimizeSchedule(items: ItineraryItem[], date: string): Promise<ItineraryItem[] | null> {
+    try {
+      const minimalItems = items.map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        type: item.type
+      }));
+
+      const prompt = `
+      Optimize the schedule for these events on ${date}.
+      Assign realistic start times (HH:mm) and periods (morning/afternoon/night) assuming a 9 AM start.
+      Return JSON: { "schedule": [ { "id": "item_id", "time": "09:00", "period": "morning" } ] }
+      Input Items: ${JSON.stringify(minimalItems)}
+      `;
+
+      const { text } = await this.generate('gemini-2.5-flash', prompt, { responseMimeType: 'application/json' });
+      const result = this.extractJson(text);
+      
+      if (!result || !result.schedule) return null;
+
+      const scheduleMap = new Map<string, any>(result.schedule.map((s: any) => [s.id, s]));
+
+      const optimizedItems = items.map(item => {
+        const s = scheduleMap.get(item.id);
+        if (s) {
+          return { ...item, time: s.time, period: s.period };
+        }
+        return item;
+      });
+      
+      return optimizedItems.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    } catch (e) {
+      console.error("Schedule optimization failed:", e);
+      return null;
+    }
+  }
+
   static async generateTripItinerary(
     location: string, 
     days: number, 
@@ -394,49 +355,6 @@ export class GeminiService {
     }
   }
 
-  static async discoverPlaces(location: string, query: string, language: string = 'en'): Promise<any[]> {
-    try {
-      const prompt = `
-      Find 5 places matching "${query}" near "${location}".
-      Return JSON: { "places": [ { "title": "", "description": "", "type": "eating", "estimatedExpense": 20 } ] }
-      Translate to ${language}.
-      `;
-
-      const { text } = await this.generate('gemini-2.5-flash', prompt, { tools: [{ googleSearch: {} }] });
-      const result = this.extractJson(text);
-      return result?.places || [];
-    } catch (e) {
-      console.error("Discovery failed:", e);
-      return [];
-    }
-  }
-
-  /**
-   * New method: Search for a specific place to add to itinerary
-   */
-  static async findPlaceDetails(query: string, locationContext: string, language: string = 'en'): Promise<Partial<ItineraryItem> | null> {
-    try {
-      const prompt = `
-      Search for a place matching "${query}" in or near "${locationContext}".
-      Return a valid JSON object with:
-      - title: Official name
-      - address: Full address
-      - description: Brief summary (max 1 sentence)
-      - type: One of 'sightseeing', 'eating', 'shopping', 'transport', 'hotel', 'other'
-      - estimatedExpense: Estimated cost per person (number only, estimate if unknown)
-      - currency: Local currency code (e.g. JPY, USD)
-      
-      Respond in ${language}.
-      `;
-
-      const { text } = await this.generate('gemini-2.5-flash', prompt, { tools: [{ googleSearch: {} }] });
-      return this.extractJson(text);
-    } catch (e) {
-      console.error("Place search failed:", e);
-      return null;
-    }
-  }
-
   static async recommendHotels(location: string, itinerary: ItineraryItem[], preferences: string, language: string): Promise<Hotel[]> {
     try {
       const placeList = itinerary.map(item => item.title).slice(0, 15).join(", ");
@@ -454,24 +372,6 @@ export class GeminiService {
     } catch (e) {
       console.error("Hotel recommendation failed:", e);
       return [];
-    }
-  }
-
-  static async searchCountries(query: string, language: string = 'en'): Promise<string[]> {
-    try {
-      const prompt = `
-      List 5-8 countries/regions matching "${query}".
-      Include "Hong Kong SAR" or "Macau SAR" if relevant.
-      Return JSON: { "countries": ["Name 1", "Name 2"] }
-      `;
-
-      const { text } = await this.generate('gemini-2.5-flash', prompt, { responseMimeType: 'application/json' });
-      const result = this.extractJson(text);
-      return result?.countries || [];
-    } catch (e) {
-      console.warn("Gemini country search failed, using fallback:", e);
-      const lowerQuery = query.toLowerCase().trim();
-      return FALLBACK_COUNTRIES.filter(c => c.toLowerCase().includes(lowerQuery));
     }
   }
 
