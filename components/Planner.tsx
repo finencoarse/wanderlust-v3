@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Trip, UserProfile, Language, CustomEvent, PlanningResource } from '../types';
 import { translations } from '../translations';
 import { GeminiService } from '../services/geminiService';
@@ -17,6 +18,8 @@ interface PlannerProps {
   onImportData: (data: any) => void;
   dataTimestamp: number;
   fullData: any;
+  autoCreate?: boolean;
+  onExitCreate?: () => void;
 }
 
 const Planner: React.FC<PlannerProps> = ({ 
@@ -32,7 +35,9 @@ const Planner: React.FC<PlannerProps> = ({
   onUpdateEvents,
   onImportData,
   dataTimestamp,
-  fullData 
+  fullData,
+  autoCreate,
+  onExitCreate
 }) => {
   const t = translations[language];
   const [isCreating, setIsCreating] = useState(false);
@@ -61,6 +66,22 @@ const Planner: React.FC<PlannerProps> = ({
   // Resources State
   const [newResources, setNewResources] = useState<PlanningResource[]>([]);
   const [resourceInput, setResourceInput] = useState<{ title: string; url: string; image: string }>({ title: '', url: '', image: '' });
+
+  useEffect(() => {
+    if (autoCreate) {
+      setIsCreating(true);
+      setCreateTab('details');
+      setFormState({ destination: '', budget: 0, currency: '$', intent: '' });
+      setNewResources([]);
+      setStartDate(new Date());
+      setEndDate(null);
+    }
+  }, [autoCreate]);
+
+  const handleCloseModal = () => {
+    setIsCreating(false);
+    if (onExitCreate) onExitCreate();
+  };
 
   // Calendar Logic
   const getDaysArray = (year: number, month: number) => {
@@ -153,6 +174,7 @@ const Planner: React.FC<PlannerProps> = ({
     
     const startDateStr = startDate.toISOString().split('T')[0];
     const finalEndDate = endDate ? endDate.toISOString().split('T')[0] : startDateStr;
+    const defaultCover = 'https://images.unsplash.com/photo-1506197603052-3cc9c3a201bd?q=80&w=1600&auto=format&fit=crop';
 
     if (mode === 'manual') {
       const newTrip: Trip = {
@@ -163,7 +185,7 @@ const Planner: React.FC<PlannerProps> = ({
         endDate: finalEndDate,
         description: 'New adventure planned.',
         status: 'future',
-        coverImage: `https://source.unsplash.com/800x600/?${formState.destination},travel`,
+        coverImage: defaultCover,
         photos: [],
         comments: [],
         rating: 0,
@@ -183,7 +205,7 @@ const Planner: React.FC<PlannerProps> = ({
       }
 
       onAddTrip(newTrip);
-      setIsCreating(false);
+      handleCloseModal();
       setNewResources([]);
       onOpenTrip(newTrip.id);
     } else {
@@ -223,7 +245,7 @@ const Planner: React.FC<PlannerProps> = ({
              endDate: finalEndDate,
              description: result.description || 'AI Generated Trip',
              status: 'future',
-             coverImage: `https://source.unsplash.com/800x600/?${formState.destination},landmark`,
+             coverImage: defaultCover,
              photos: [],
              comments: [],
              rating: 0,
@@ -236,7 +258,7 @@ const Planner: React.FC<PlannerProps> = ({
           };
           
           onAddTrip(newTrip);
-          setIsCreating(false);
+          handleCloseModal();
           setNewResources([]);
           onOpenTrip(newTrip.id);
         } else {
@@ -263,6 +285,14 @@ const Planner: React.FC<PlannerProps> = ({
     }
   };
 
+  const handleShare = (e: React.MouseEvent, trip: Trip) => {
+    e.stopPropagation();
+    const duration = Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24));
+    const summary = `🌍 Journey: ${trip.title}\n📍 Location: ${trip.location}\n📅 Dates: ${trip.startDate} to ${trip.endDate} (${duration} days)\n\nPlanned with Wanderlust.`;
+    navigator.clipboard.writeText(summary);
+    alert(t.copied || "Copied to clipboard!");
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in pb-24">
       <div className="flex justify-between items-end">
@@ -280,28 +310,69 @@ const Planner: React.FC<PlannerProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {trips.map(trip => (
-          <div key={trip.id} onClick={() => onOpenTrip(trip.id)} className={`group relative p-6 rounded-[2.5rem] border-2 cursor-pointer transition-all hover:scale-[1.02] active:scale-95 ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100 shadow-sm hover:shadow-xl'}`}>
-             <div className="aspect-video rounded-2xl overflow-hidden mb-4 bg-gray-200 relative">
-               <img src={trip.coverImage} className="w-full h-full object-cover" />
-               <button 
-                 onClick={(e) => handleRequestDelete(e, trip.id)}
-                 className="absolute top-2 right-2 p-2 bg-white/20 backdrop-blur-md rounded-xl text-white hover:bg-rose-500 transition-colors opacity-0 group-hover:opacity-100"
-               >
-                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-               </button>
-               {trip.resources && trip.resources.length > 0 && (
-                 <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/50 backdrop-blur-md rounded-lg text-white text-[10px] font-bold flex items-center gap-1">
-                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                   {trip.resources.length}
-                 </div>
-               )}
-             </div>
-             <h3 className="text-xl font-black mb-1">{trip.title}</h3>
-             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">{trip.startDate} • {Object.keys(trip.itinerary).length} Days</p>
-             <div className="flex justify-between items-center">
-                <span className="text-xs font-bold px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">{trip.location}</span>
-                {trip.budget && <span className="text-xs font-mono opacity-50">{trip.defaultCurrency}{trip.budget}</span>}
-             </div>
+          <div key={trip.id} onClick={() => onOpenTrip(trip.id)} className="group cursor-pointer relative">
+            <div className={`relative overflow-hidden rounded-[2.5rem] aspect-[16/10] bg-zinc-100 dark:bg-zinc-800 shadow-xl transition-all duration-300 group-hover:scale-[1.02] active:scale-95 ${trip.isPinned ? 'ring-4 ring-indigo-500/20' : ''}`}>
+              <img 
+                src={trip.coverImage} 
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=800&auto=format&fit=crop';
+                }}
+              />
+              
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex items-end justify-between p-8">
+                <div className="space-y-2 flex-1 min-w-0 mr-4">
+                  <h3 className="text-white text-3xl font-black tracking-tight drop-shadow-lg truncate leading-tight">
+                    {trip.title}
+                  </h3>
+                  <div className="flex items-center gap-3 text-white/80 font-bold text-xs tracking-widest uppercase">
+                     <span>{trip.startDate}</span>
+                     <span className="w-1 h-1 bg-white/50 rounded-full" />
+                     <span>{trip.location}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-4 group-hover:translate-y-0">
+                   <button 
+                     onClick={(e) => handleShare(e, trip)} 
+                     className="p-3 rounded-2xl bg-white/10 backdrop-blur-md text-white hover:bg-white hover:text-black transition-all border border-white/10"
+                     title={t.share}
+                   >
+                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 100-2.684 3 3 0 000 2.684zm0 12.684a3 3 0 100-2.684 3 3 0 000 2.684z"/></svg>
+                   </button>
+
+                   <button 
+                     onClick={(e) => { e.stopPropagation(); onUpdateTrip({ ...trip, isPinned: !trip.isPinned }); }}
+                     className={`p-3 rounded-2xl backdrop-blur-md transition-all border border-white/10 ${trip.isPinned ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white hover:bg-white hover:text-indigo-600'}`}
+                     title={trip.isPinned ? t.unpin : t.pin}
+                   >
+                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+                   </button>
+
+                   <button 
+                     onClick={(e) => handleRequestDelete(e, trip.id)}
+                     className="p-3 rounded-2xl bg-white/10 backdrop-blur-md text-white hover:bg-rose-500 transition-all border border-white/10"
+                     title={t.delete}
+                   >
+                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                   </button>
+                </div>
+              </div>
+
+              <div className="absolute top-6 left-6 flex gap-2">
+                 {trip.isPinned && (
+                    <div className="bg-indigo-600 text-white p-2.5 rounded-xl shadow-xl border border-white/10">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z"/></svg>
+                    </div>
+                 )}
+                 {trip.resources && trip.resources.length > 0 && (
+                   <div className="px-3 py-2 bg-black/60 backdrop-blur-md rounded-xl text-white text-xs font-black flex items-center gap-1.5 border border-white/10">
+                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                     {trip.resources.length}
+                   </div>
+                 )}
+              </div>
+            </div>
           </div>
         ))}
         {trips.length === 0 && (
@@ -313,12 +384,12 @@ const Planner: React.FC<PlannerProps> = ({
 
       {isCreating && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCreating(false)} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleCloseModal} />
           <div className={`relative w-full max-w-2xl p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 max-h-[95vh] flex flex-col ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
              {/* Header */}
              <div className="flex justify-between items-center mb-6 shrink-0">
                <h3 className="text-3xl font-black">{t.newJourney}</h3>
-               <button onClick={() => setIsCreating(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+               <button onClick={handleCloseModal} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
              </div>
 
              {/* Tab Bar */}
@@ -486,7 +557,7 @@ const Planner: React.FC<PlannerProps> = ({
 
              {/* Footer Actions */}
              <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 mt-auto shrink-0 flex gap-4">
-                <button onClick={() => setIsCreating(false)} className={`flex-1 py-4 rounded-2xl font-black uppercase text-xs tracking-widest ${darkMode ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}>
+                <button onClick={handleCloseModal} className={`flex-1 py-4 rounded-2xl font-black uppercase text-xs tracking-widest ${darkMode ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}>
                   {t.cancel}
                 </button>
                 <button 
@@ -504,6 +575,31 @@ const Planner: React.FC<PlannerProps> = ({
                   )}
                 </button>
              </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {tripToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setTripToDelete(null)} />
+          <div className={`relative w-full max-w-sm p-6 rounded-[2rem] shadow-2xl animate-in zoom-in-95 ${darkMode ? 'bg-zinc-900' : 'bg-white'}`}>
+            <h3 className={`text-xl font-black mb-2 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>{t.deleteTripTitle}</h3>
+            <p className="text-sm text-zinc-500 font-bold mb-6">{t.deleteTripConfirm}</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setTripToDelete(null)} 
+                className={`flex-1 py-3 rounded-xl font-black uppercase text-xs tracking-widest ${darkMode ? 'bg-zinc-800 text-white hover:bg-zinc-700' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+              >
+                {t.cancel}
+              </button>
+              <button 
+                onClick={confirmDelete} 
+                className="flex-1 py-3 rounded-xl font-black uppercase text-xs tracking-widest bg-rose-500 text-white hover:bg-rose-600 shadow-lg shadow-rose-500/30"
+              >
+                {t.delete}
+              </button>
+            </div>
           </div>
         </div>
       )}
