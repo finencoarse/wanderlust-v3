@@ -131,10 +131,27 @@ export class SupabaseService {
    * If conflicts exist, UI should prompt user. If not, UI can proceed to save.
    */
   static async checkForConflicts(syncId: string, localData: any): Promise<{ conflicts: ConflictItem[], remoteData: any | null }> {
-    const remoteData = await this.loadGlobalBackup(syncId);
+    const result = await this.loadGlobalBackup(syncId);
     
-    if (!remoteData) {
+    if (!result) {
       return { conflicts: [], remoteData: null };
+    }
+
+    const { data: remoteData, timestamp: remoteTimestamp } = result;
+
+    // --- 15-MINUTE RULE ---
+    // If the cloud data hasn't been updated in the last 15 minutes,
+    // we assume the current user's session is the authority and skip the manual conflict resolution.
+    // We still return remoteData so performSync can merge non-conflicting list items.
+    if (remoteTimestamp) {
+        const remoteTime = new Date(remoteTimestamp).getTime();
+        const currentTime = Date.now();
+        const diffMinutes = (currentTime - remoteTime) / (1000 * 60);
+
+        if (diffMinutes > 15) {
+            console.log(`Remote data is ${diffMinutes.toFixed(1)} mins old. Skipping conflict prompt.`);
+            return { conflicts: [], remoteData };
+        }
     }
 
     const conflicts: ConflictItem[] = [];
@@ -286,17 +303,12 @@ export class SupabaseService {
       // 1. If remoteData wasn't passed from conflict check, fetch it now
       let rData = remoteData;
       if (!rData) {
-        const { data: remoteRow } = await supabase
-          .from('global_backups')
-          .select('data')
-          .eq('sync_id', syncId)
-          .single();
-        rData = remoteRow?.data;
+        const result = await this.loadGlobalBackup(syncId);
+        rData = result?.data;
       }
 
       // 2. Smart Merge
       if (rData) {
-        console.log("Merging data with resolution map:", resolutionMap);
         finalData = this.smartMerge(localData, rData, resolutionMap);
       }
 
@@ -333,21 +345,21 @@ export class SupabaseService {
     return finalData;
   }
 
-  static async loadGlobalBackup(syncId: string): Promise<any | null> {
+  static async loadGlobalBackup(syncId: string): Promise<{ data: any, timestamp: string } | null> {
     if (this.isCloudActive()) {
       const { data, error } = await supabase
         .from('global_backups')
-        .select('data')
+        .select('data, timestamp')
         .eq('sync_id', syncId)
         .single();
 
       if (error || !data) return null;
-      return data.data;
+      return { data: data.data, timestamp: data.timestamp };
     } else {
       const stored = localStorage.getItem(`wanderlust_backup_${syncId}`);
       if (stored) {
         const parsed = JSON.parse(stored);
-        return parsed.data;
+        return { data: parsed.data, timestamp: parsed.timestamp };
       }
       return null;
     }
