@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Language, UserProfile, FontSize } from '../types';
 import { translations } from '../translations';
 import { getMapUsage } from '../services/mapsService';
 import { GeminiService } from '../services/geminiService';
-import { SupabaseService, ConflictItem } from '../services/supabaseService';
+import { SupabaseService } from '../services/supabaseService';
 import { COUNTRIES, CountryData } from '../data/countries';
 
 interface SettingsProps {
@@ -30,15 +31,10 @@ const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, se
   
   const [syncId, setSyncId] = useState(() => localStorage.getItem('wanderlust_sync_id') || '');
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error' | 'merged'>('idle');
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [inputSyncId, setInputSyncId] = useState('');
   const [isEditingId, setIsEditingId] = useState(false);
   const [tempId, setTempId] = useState('');
-
-  const [conflicts, setConflicts] = useState<ConflictItem[]>([]);
-  const [remoteDataCache, setRemoteDataCache] = useState<any>(null);
-  const [resolutionMap, setResolutionMap] = useState<Record<string, 'local' | 'remote'>>({});
-  const [showConflictModal, setShowConflictModal] = useState(false);
 
   const [showConfig, setShowConfig] = useState(false);
   const [sbUrl, setSbUrl] = useState('');
@@ -111,62 +107,19 @@ const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, se
     setIsSyncing(true);
     setSyncStatus('idle');
     try {
-      const { conflicts: foundConflicts, remoteData } = await SupabaseService.checkForConflicts(syncId, fullData);
-      
-      if (foundConflicts.length > 0) {
-          setConflicts(foundConflicts);
-          setRemoteDataCache(remoteData);
-          const initialMap: Record<string, 'local' | 'remote'> = {};
-          foundConflicts.forEach(c => initialMap[c.tripId] = 'local');
-          setResolutionMap(initialMap);
-          
-          setShowConflictModal(true);
-          setIsSyncing(false); 
-          return;
-      }
-
-      await performSync(remoteData, {}); 
+      await SupabaseService.saveGlobalBackup(syncId, fullData);
+      setSyncStatus('success');
+      alert("Backup successful! Cloud data has been overwritten.");
+      setTimeout(() => setSyncStatus('idle'), 3000);
     } catch (e) {
       console.error(e);
       setSyncStatus('error');
       if (e instanceof Error) {
-        alert("Sync failed: " + e.message);
+        alert("Backup failed: " + e.message);
       }
+    } finally {
       setIsSyncing(false);
     }
-  };
-
-  const performSync = async (remoteData: any, resolutions: Record<string, 'local' | 'remote'>) => {
-    try {
-        const mergedData = await SupabaseService.saveGlobalBackup(
-            syncId, 
-            fullData, 
-            remoteData, 
-            resolutions
-        );
-        onImportData(mergedData);
-        setSyncStatus('success');
-        alert("Sync successful! Changes have been merged.");
-        setTimeout(() => setSyncStatus('idle'), 3000);
-        
-        setShowConflictModal(false);
-        setConflicts([]);
-        setRemoteDataCache(null);
-    } catch (e) {
-        console.error(e);
-        setSyncStatus('error');
-        alert("Sync failed during save: " + (e as Error).message);
-    } finally {
-        setIsSyncing(false);
-    }
-  };
-
-  const handleResolutionChange = (tripId: string, value: 'local' | 'remote') => {
-    setResolutionMap(prev => ({ ...prev, [tripId]: value }));
-  };
-
-  const handleConfirmResolution = () => {
-    performSync(remoteDataCache, resolutionMap);
   };
 
   const handleCloudRestore = async () => {
@@ -267,7 +220,6 @@ const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, se
         if (typeof result !== 'string') return;
 
         const json = JSON.parse(result);
-        // Fix for Type Error: Ensure messages are strings
         const confirmMsg = typeof t?.importConfirm === 'string' ? t.importConfirm : "Overwrite current data with this file?";
         if (window.confirm(confirmMsg)) {
           onImportData(json);
@@ -470,7 +422,7 @@ const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, se
                 ) : (
                    syncStatus === 'success' ? <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                 )}
-                {syncStatus === 'success' ? 'Saved!' : 'Sync & Merge'}
+                {syncStatus === 'success' ? 'Saved!' : 'Save to Cloud'}
               </button>
             </div>
 
@@ -553,93 +505,6 @@ const Settings: React.FC<SettingsProps> = ({ language, setLanguage, darkMode, se
         )}
 
       </div>
-
-      {showConflictModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowConflictModal(false)} />
-          <div className={`relative w-full max-w-2xl p-8 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95 overflow-hidden flex flex-col max-h-[85vh] ${darkMode ? 'bg-zinc-900 border border-zinc-700' : 'bg-white'}`}>
-            
-            <div className="mb-6 flex items-start gap-4">
-               <div className="p-3 bg-amber-500/10 text-amber-500 rounded-2xl shrink-0">
-                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-               </div>
-               <div>
-                 <h3 className="text-2xl font-black mb-1">{t.syncConflict}</h3>
-                 <p className="text-sm opacity-60 leading-relaxed">
-                   {t.conflictDescription}
-                 </p>
-               </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-               {Array.from(new Set(conflicts.map(c => c.tripId))).map(tripId => {
-                  const tripConflicts = conflicts.filter(c => c.tripId === tripId);
-                  const tripTitle = tripConflicts[0].tripTitle;
-                  const currentChoice = resolutionMap[tripId] || 'local';
-
-                  return (
-                    <div key={tripId} className={`p-5 rounded-2xl border-2 transition-all ${darkMode ? 'bg-black border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
-                       <h4 className="font-black text-lg mb-4 flex items-center gap-2">
-                         ✈️ {tripTitle}
-                         <span className="text-[10px] px-2 py-1 bg-rose-500 text-white rounded-lg uppercase tracking-widest">{tripConflicts.length} {t.conflictsCount}</span>
-                       </h4>
-                       
-                       <div className="space-y-3 mb-6">
-                          {tripConflicts.map((c, i) => (
-                             <div key={i} className="flex flex-col gap-1 text-sm border-l-2 border-zinc-300 dark:border-zinc-700 pl-3 py-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest opacity-50">{c.field}</span>
-                                <div className="grid grid-cols-2 gap-4">
-                                   <div>
-                                      <div className="text-[10px] font-bold text-emerald-500 mb-0.5">{t.yours}</div>
-                                      <div className="font-medium opacity-80 break-words line-clamp-2">{c.localValue}</div>
-                                   </div>
-                                   <div>
-                                      <div className="text-[10px] font-bold text-indigo-500 mb-0.5">{t.cloud}</div>
-                                      <div className="font-medium opacity-80 break-words line-clamp-2">{c.remoteValue}</div>
-                                   </div>
-                                </div>
-                             </div>
-                          ))}
-                       </div>
-
-                       <div className="flex bg-zinc-200 dark:bg-zinc-800 p-1 rounded-xl">
-                          <button 
-                            onClick={() => handleResolutionChange(tripId, 'local')}
-                            className={`flex-1 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${currentChoice === 'local' ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm ring-1 ring-black/5' : 'opacity-50 hover:opacity-100'}`}
-                          >
-                            {currentChoice === 'local' && <span className="text-emerald-500">✓</span>} {t.keepMine}
-                          </button>
-                          <button 
-                            onClick={() => handleResolutionChange(tripId, 'remote')}
-                            className={`flex-1 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${currentChoice === 'remote' ? 'bg-white dark:bg-zinc-700 text-black dark:text-white shadow-sm ring-1 ring-black/5' : 'opacity-50 hover:opacity-100'}`}
-                          >
-                            {currentChoice === 'remote' && <span className="text-indigo-500">✓</span>} {t.useCloud}
-                          </button>
-                       </div>
-                    </div>
-                  );
-               })}
-            </div>
-
-            <div className="mt-6 pt-6 border-t dark:border-zinc-800 flex gap-4">
-               <button 
-                 onClick={() => setShowConflictModal(false)} 
-                 className={`flex-1 py-4 rounded-2xl font-black uppercase text-xs tracking-widest ${darkMode ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-zinc-100 hover:bg-zinc-200'}`}
-               >
-                 {t.cancelSync}
-               </button>
-               <button 
-                 onClick={handleConfirmResolution}
-                 className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-indigo-700 active:scale-[0.98] transition-all"
-               >
-                 {t.confirmMerge}
-               </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };
